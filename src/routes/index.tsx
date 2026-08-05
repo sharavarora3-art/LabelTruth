@@ -1,192 +1,159 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { ScanResult } from "@/components/ScanResult";
-import { analyzeLabel, type AnalysisResult } from "@/lib/analyze.functions";
+import { AnnouncementSlider } from "@/components/AnnouncementSlider";
+import { DeviceTab } from "@/components/DeviceTab";
+import { PartnerSlider } from "@/components/PartnerSlider";
+import { SiteFooter } from "@/components/SiteFooter";
+import { SiteHeader } from "@/components/SiteHeader";
+import { TrackedItems } from "@/components/TrackedItems";
+import { historyMilestones } from "@/lib/site-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LabelTruth — Scan packaged food, get a trust score" },
+      { title: "LabelTruth — Scan packaged food, get a P:C trust score" },
       {
         name: "description",
         content:
-          "Photograph any packaged food label and get an instant healthy-or-not verdict, a Product-to-Claim (P:C) ratio and a trust score for the pack's claims.",
+          "LabelTruth photographs any packaged food label and returns a healthy-or-not verdict, the Product-to-Claim (P:C) ratio, a 0-100 trust score and a confidence band.",
       },
-      { property: "og:title", content: "LabelTruth — Scan packaged food, get a trust score" },
+      { property: "og:title", content: "LabelTruth — Scan packaged food, get a P:C trust score" },
       {
         property: "og:description",
         content:
-          "Snap a food label and see whether the pack lives up to its claims, scored with the P:C ratio and a 0-100 trust score.",
+          "Snap a food label and see whether the pack lives up to its claims, scored with the P:C ratio, a trust score and an explicit confidence band.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: Landing,
 });
 
-const MAX_EDGE = 1100;
-
-async function fileToCompressedDataUrl(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not read that photo.");
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.82);
+function Section({
+  eyebrow,
+  title,
+  lead,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  lead?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mx-auto max-w-6xl px-5 py-14">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-2xl font-bold sm:text-3xl">{title}</h2>
+      {lead && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{lead}</p>}
+      <div className="mt-8">{children}</div>
+    </section>
+  );
 }
 
-function Index() {
-  const analyze = useServerFn(analyzeLabel);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const uploadRef = useRef<HTMLInputElement>(null);
-
-  const [image, setImage] = useState<string | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
-    setError(null);
-    setResult(null);
-    setLoading(true);
-    try {
-      const dataUrl = await fileToCompressedDataUrl(file);
-      setImage(dataUrl);
-      const res = await analyze({ data: { imageDataUrl: dataUrl } });
-      setResult(res);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong while scanning.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function Landing() {
   return (
-    <main className="min-h-screen bg-background pb-20">
-      <header
-        className="px-5 pb-14 pt-12 text-primary-foreground"
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
+
+      <section
+        className="px-5 pb-20 pt-16 text-primary-foreground"
         style={{ background: "var(--gradient-hero)" }}
       >
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-6xl">
           <span className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-            P:C ratio scanner
+            The P:C ratio scanner
           </span>
-          <h1 className="mt-5 text-4xl font-bold leading-[1.05] sm:text-5xl">
-            Photograph the pack.
-            <br />
-            See if it's telling the truth.
+          <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-[1.05] sm:text-6xl">
+            Photograph the pack. See if it&apos;s telling the truth.
           </h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-primary-foreground/75">
+          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-primary-foreground/75 sm:text-base">
             LabelTruth reads the label, judges healthy or not, and scores the gap between what the
             product actually delivers and what the packaging claims — the{" "}
             <strong className="font-semibold text-accent">Product-to-Claim (P:C) ratio</strong> —
-            plus a 0-100 trust score.
+            plus a 0-100 trust score and a stated confidence band.
           </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              onClick={() => cameraRef.current?.click()}
-              disabled={loading}
-              className="rounded-full bg-accent px-6 py-3 text-sm font-bold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link
+              to="/scan"
+              className="rounded-full bg-accent px-6 py-3 text-sm font-bold text-accent-foreground transition hover:opacity-90"
             >
-              {loading ? "Reading label…" : "Take a photo"}
-            </button>
-            <button
-              onClick={() => uploadRef.current?.click()}
-              disabled={loading}
-              className="rounded-full border border-primary-foreground/25 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10 disabled:opacity-60"
+              Scan a pack now
+            </Link>
+            <Link
+              to="/api"
+              className="rounded-full border border-primary-foreground/25 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
             >
-              Upload an image
-            </button>
+              Explore the API Program
+            </Link>
           </div>
-
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-          <input
-            ref={uploadRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
+          <dl className="mt-12 grid max-w-3xl gap-4 sm:grid-cols-3">
+            {[
+              ["0.00 – 2.00", "P:C ratio scale"],
+              ["0 – 100", "Pack trust score"],
+              ["Low / Med / High", "Confidence band"],
+            ].map(([v, l]) => (
+              <div key={l} className="rounded-2xl bg-primary-foreground/10 p-4">
+                <dt className="font-display text-xl font-bold text-accent">{v}</dt>
+                <dd className="text-xs uppercase tracking-wide text-primary-foreground/70">{l}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </header>
+      </section>
 
-      <div className="mx-auto -mt-8 max-w-3xl px-5">
-        {error && (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm font-medium text-destructive shadow-card">
-            {error}
-          </div>
-        )}
+      <Section
+        eyebrow="Announcements"
+        title="What's happening at LabelTruth"
+        lead="Partnerships, the API Program, our own evaluation methodology and public-sector work."
+      >
+        <AnnouncementSlider />
+      </Section>
 
-        {loading && (
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-card">
-            <div className="flex items-center gap-3">
-              <span className="size-3 animate-pulse rounded-full bg-accent" />
-              <p className="text-sm font-semibold">
-                Reading ingredients, claims and nutrition panel…
-              </p>
-            </div>
-            <div className="mt-5 space-y-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-3 animate-pulse rounded-full bg-muted" />
-              ))}
-            </div>
-          </div>
-        )}
+      <Section
+        eyebrow="Hardware"
+        title="TechForges Nutrition Tracking Device (upcoming)"
+        lead="Our first hardware partner and first API client. Switch between the live readout, the sync flow and the device specs."
+      >
+        <DeviceTab />
+      </Section>
 
-        {!loading && result && image && <ScanResult result={result} image={image} />}
+      <Section
+        eyebrow="Partners & clients"
+        title="Who we work with"
+        lead="Manufacturers, retailers, device makers and data partners integrating LabelTruth scoring."
+      >
+        <PartnerSlider />
+      </Section>
 
-        {!loading && !result && !error && (
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-card">
-            <h2 className="text-lg font-bold">How the P:C ratio works</h2>
-            <ul className="mt-4 space-y-4">
-              {[
-                {
-                  n: "1.00",
-                  t: "Honest pack",
-                  d: "The ingredients and nutrition fully back up every claim on the front.",
-                },
-                {
-                  n: "< 1.00",
-                  t: "Over-promising",
-                  d: "\"High protein\", \"no added sugar\" or \"natural\" outrun what's really inside.",
-                },
-                {
-                  n: "> 1.00",
-                  t: "Quietly good",
-                  d: "The product is more nutritious than its own marketing suggests.",
-                },
-              ].map((row) => (
-                <li key={row.n} className="flex gap-4">
-                  <span className="font-display w-16 shrink-0 text-lg font-bold text-primary">
-                    {row.n}
-                  </span>
-                  <span className="text-sm">
-                    <strong className="font-semibold">{row.t}</strong>
-                    <span className="block text-muted-foreground">{row.d}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-              For best results, capture the front of the pack with the ingredients or nutrition
-              panel visible. This is guidance, not medical advice.
-            </p>
-          </div>
-        )}
-      </div>
-    </main>
+      <Section
+        eyebrow="Coverage"
+        title="Company food items tracked with LabelTruth"
+        lead="Drag or hover any pack to turn it in 3D. Scores shown are from our reference audits."
+      >
+        <TrackedItems />
+      </Section>
+
+      <Section
+        eyebrow="Our history"
+        title="From a working group to a scoring standard"
+        lead="LabelTruth grew out of EcoTruth Group's label-truth research."
+      >
+        <ol className="relative space-y-6 border-l border-border pl-6">
+          {historyMilestones.map((m) => (
+            <li key={m.year}>
+              <span className="absolute -left-[7px] mt-1.5 size-3 rounded-full bg-primary" />
+              <p className="font-display text-sm font-bold text-primary">{m.year}</p>
+              <h3 className="mt-1 text-base font-bold">{m.title}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{m.body}</p>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      <SiteFooter />
+    </div>
   );
 }
