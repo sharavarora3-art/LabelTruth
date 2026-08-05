@@ -12,6 +12,13 @@ const claimStyles: Record<string, string> = {
   false: "bg-destructive/12 text-destructive border-destructive/30",
 };
 
+const confidenceStyles: Record<string, string> = {
+  high: "bg-success text-success-foreground",
+  medium: "bg-warning text-warning-foreground",
+  low: "bg-destructive text-destructive-foreground",
+};
+
+
 function Gauge({ value, max, label, caption }: { value: number; max: number; label: string; caption: string }) {
   const pct = Math.max(2, Math.min(100, (value / max) * 100));
   return (
@@ -86,6 +93,31 @@ export function ScanResult({ result, image }: { result: AnalysisResult; image: s
           </p>
         </div>
       </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-bold">Confidence in this reading</h3>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${confidenceStyles[result.confidence] ?? confidenceStyles["medium"]}`}
+          >
+            {result.confidence}
+          </span>
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {result.confidenceExplanation}
+        </p>
+        {result.legibility?.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {result.legibility.map((l, i) => (
+              <li key={i} className="flex gap-2.5 text-sm text-muted-foreground">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                {l}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
 
       {result.claims.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
