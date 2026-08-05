@@ -98,7 +98,7 @@ export function ScanResult({ result, image }: { result: AnalysisResult; image: s
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold">Confidence in this reading</h3>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${confidenceStyles[result.confidence] ?? confidenceStyles.medium}`}
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${confidenceStyles[result.confidence] ?? confidenceStyles["medium"]}`}
           >
             {result.confidence}
           </span>
