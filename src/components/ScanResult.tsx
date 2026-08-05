@@ -96,7 +96,7 @@ export function ScanResult({ result, image }: { result: AnalysisResult; image: s
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display text-sm font-semibold">“{c.claim}”</span>
                   <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${claimStyles[c.verdict] ?? claimStyles.misleading}`}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${claimStyles[c.verdict] ?? claimStyles["misleading"]}`}
                   >
                     {c.verdict}
                   </span>
