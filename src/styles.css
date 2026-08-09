@@ -114,6 +114,10 @@
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --shadow-card: 0 1px 0 0 oklch(0.19 0.03 150 / 0.08), 0 18px 40px -24px oklch(0.19 0.03 150 / 0.35);
+  --gold: oklch(0.82 0.13 88);
+  --gold-foreground: oklch(0.24 0.05 90);
+  --shadow-luxe: 0 1px 0 0 oklch(0.82 0.13 88 / 0.25), 0 30px 70px -34px oklch(0.19 0.03 150 / 0.55);
+  --gradient-luxe: linear-gradient(120deg, oklch(0.82 0.13 88) 0%, oklch(0.9 0.09 100) 45%, oklch(0.72 0.1 80) 100%);
   --gradient-hero: linear-gradient(
     155deg,
     oklch(0.24 0.05 150) 0%,
@@ -199,3 +203,24 @@
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
 }
 
+
+.text-luxe {
+  background: var(--gradient-luxe);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.luxe-rule {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+}
+
+@keyframes labeltruth-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: labeltruth-float 6s ease-in-out infinite;
+}
