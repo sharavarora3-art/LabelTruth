@@ -66,6 +66,10 @@
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --shadow-card: var(--shadow-card);
+  --shadow-luxe: var(--shadow-luxe);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+
 }
 
 
