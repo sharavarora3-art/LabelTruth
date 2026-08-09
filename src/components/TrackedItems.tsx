@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { trackedItems, type TrackedItem } from "@/lib/site-data";
+import { trackedItems, trackedNotice, type TrackedItem } from "@/lib/site-data";
 
 const verdictClass: Record<TrackedItem["verdict"], string> = {
   healthy: "bg-success text-success-foreground",
@@ -22,12 +22,13 @@ function TiltCard({ item }: { item: TrackedItem }) {
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-card">
+    <div className="group relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-card transition duration-500 hover:-translate-y-1 hover:border-accent/60 hover:shadow-luxe">
+      <span className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-accent/70 to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
       <div
         ref={ref}
         onPointerMove={move}
         onPointerLeave={() => setT({ x: 0, y: 0, active: false })}
-        className="grid h-44 cursor-grab place-items-center rounded-2xl bg-muted/60"
+        className="relative grid h-44 cursor-grab place-items-center overflow-hidden rounded-2xl bg-muted/60"
         style={{ perspective: "800px" }}
       >
         <img
@@ -44,6 +45,12 @@ function TiltCard({ item }: { item: TrackedItem }) {
           }}
           draggable={false}
         />
+        <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground backdrop-blur">
+          {item.category}
+        </span>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full bg-background/92 p-3 text-[11px] leading-relaxed text-muted-foreground backdrop-blur transition duration-400 group-hover:translate-y-0">
+          {trackedNotice}
+        </div>
       </div>
       <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {item.company}
@@ -79,10 +86,15 @@ function TiltCard({ item }: { item: TrackedItem }) {
 
 export function TrackedItems() {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {trackedItems.map((item) => (
-        <TiltCard key={`${item.company}-${item.item}`} item={item} />
-      ))}
+    <div>
+      <p className="mb-5 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-foreground">
+        <strong className="font-semibold">Notice:</strong> {trackedNotice}
+      </p>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {trackedItems.map((item) => (
+          <TiltCard key={`${item.company}-${item.item}`} item={item} />
+        ))}
+      </div>
     </div>
   );
 }

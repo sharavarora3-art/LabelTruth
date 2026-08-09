@@ -1,15 +1,15 @@
-import annDevice from "@/assets/ann-device.jpg";
-import annApi from "@/assets/ann-api.jpg";
-import annMethod from "@/assets/ann-method.jpg";
-import annSubsidy from "@/assets/ann-subsidy.jpg";
-import annClient from "@/assets/ann-client.jpg";
+const annDevice = "/assets/ann-device.jpg";
+const annApi = "/assets/ann-api.jpg";
+const annMethod = "/assets/ann-method.jpg";
+const annSubsidy = "/assets/ann-subsidy.jpg";
+const annClient = "/assets/ann-client.jpg";
 
-import itemCola from "@/assets/item-cola.png";
-import itemNoodles from "@/assets/item-noodles.png";
-import itemBar from "@/assets/item-bar.png";
-import itemYogurt from "@/assets/item-yogurt.png";
-import itemChips from "@/assets/item-chips.png";
-import itemCereal from "@/assets/item-cereal.png";
+const itemCola = "/assets/item-cola.png";
+const itemNoodles = "/assets/item-noodles.png";
+const itemBar = "/assets/item-bar.png";
+const itemYogurt = "/assets/item-yogurt.png";
+const itemChips = "/assets/item-chips.png";
+const itemCereal = "/assets/item-cereal.png";
 
 export type Announcement = {
   tag: string;
@@ -70,6 +70,7 @@ export type TrackedItem = {
   trust: number;
   verdict: "healthy" | "moderate" | "unhealthy";
   note: string;
+  category: string;
 };
 
 export const trackedItems: TrackedItem[] = [
@@ -81,6 +82,7 @@ export const trackedItems: TrackedItem[] = [
     trust: 34,
     verdict: "unhealthy",
     note: "\"Refreshing energy\" is 35g of free sugar per can with no other nutrients.",
+    category: "Beverages",
   },
   {
     company: "MetricBite Kitchen",
@@ -90,6 +92,7 @@ export const trackedItems: TrackedItem[] = [
     trust: 41,
     verdict: "unhealthy",
     note: "\"Wholesome meal\" claim collapses on 1,900mg sodium and refined palm-fried flour.",
+    category: "Instant meals",
   },
   {
     company: "FreshAisle",
@@ -99,6 +102,7 @@ export const trackedItems: TrackedItem[] = [
     trust: 62,
     verdict: "moderate",
     note: "20g protein is real, but glucose syrup sits second in the ingredient list.",
+    category: "Bars",
   },
   {
     company: "OpenPantry Dairy",
@@ -108,6 +112,7 @@ export const trackedItems: TrackedItem[] = [
     trust: 78,
     verdict: "healthy",
     note: "Live cultures and 8g protein deliver slightly more than the pack promises.",
+    category: "Dairy",
   },
   {
     company: "ClearCart Snacks",
@@ -117,6 +122,7 @@ export const trackedItems: TrackedItem[] = [
     trust: 46,
     verdict: "unhealthy",
     note: "\"Only 3 ingredients\" is true, yet a 30g serving hides a 150g bag.",
+    category: "Snacks",
   },
   {
     company: "NutriPanel Foods",
@@ -126,8 +132,188 @@ export const trackedItems: TrackedItem[] = [
     trust: 57,
     verdict: "moderate",
     note: "\"Fortified with 9 vitamins\" distracts from a very high glycemic base.",
+    category: "Cereal",
+  },
+  {
+    company: "VeraFoods",
+    item: "Zero Sugar Cola 500ml",
+    image: itemCola,
+    pc: 0.68,
+    trust: 55,
+    verdict: "moderate",
+    note: "Sugar-free is accurate, but \"healthy hydration\" overstates flavoured acid water.",
+    category: "Beverages",
+  },
+  {
+    company: "VeraFoods",
+    item: "Orange Nectar Juice 1L",
+    image: itemCola,
+    pc: 0.44,
+    trust: 38,
+    verdict: "unhealthy",
+    note: "\"100% natural\" hides 12% juice content with the rest sugar and water.",
+    category: "Beverages",
+  },
+  {
+    company: "MetricBite Kitchen",
+    item: "Masala Ramen Pack",
+    image: itemNoodles,
+    pc: 0.52,
+    trust: 44,
+    verdict: "unhealthy",
+    note: "\"No added MSG\" is offset by yeast extract carrying the same glutamates.",
+    category: "Instant meals",
+  },
+  {
+    company: "MetricBite Kitchen",
+    item: "Whole Wheat Noodles",
+    image: itemNoodles,
+    pc: 0.79,
+    trust: 61,
+    verdict: "moderate",
+    note: "Whole wheat is first, yet fibre lands at only 3.1g per 100g.",
+    category: "Instant meals",
+  },
+  {
+    company: "FreshAisle",
+    item: "Peanut Butter Crunch Bar",
+    image: itemBar,
+    pc: 0.74,
+    trust: 58,
+    verdict: "moderate",
+    note: "\"High protein\" at 14g competes with 19g sugar in the same bar.",
+    category: "Bars",
+  },
+  {
+    company: "FreshAisle",
+    item: "Oat & Date Breakfast Bar",
+    image: itemBar,
+    pc: 1.05,
+    trust: 74,
+    verdict: "healthy",
+    note: "Dates and oats do the sweetening; no refined sugar found on the panel.",
+    category: "Bars",
+  },
+  {
+    company: "OpenPantry Dairy",
+    item: "Greek Yogurt Plain 400g",
+    image: itemYogurt,
+    pc: 1.31,
+    trust: 86,
+    verdict: "healthy",
+    note: "Two ingredients, 10g protein per 100g, and the claim understates the product.",
+    category: "Dairy",
+  },
+  {
+    company: "OpenPantry Dairy",
+    item: "Mango Drinking Yogurt",
+    image: itemYogurt,
+    pc: 0.66,
+    trust: 52,
+    verdict: "moderate",
+    note: "\"Real fruit\" is 4% purée; sugar per bottle reaches 21g.",
+    category: "Dairy",
+  },
+  {
+    company: "ClearCart Snacks",
+    item: "Baked Veggie Crisps",
+    image: itemChips,
+    pc: 0.63,
+    trust: 49,
+    verdict: "unhealthy",
+    note: "\"Baked, not fried\" is true but potato starch dominates the vegetables.",
+    category: "Snacks",
+  },
+  {
+    company: "ClearCart Snacks",
+    item: "Sea Salt Popcorn",
+    image: itemChips,
+    pc: 0.94,
+    trust: 68,
+    verdict: "moderate",
+    note: "Whole-grain corn base is honest; salt load still runs high per bag.",
+    category: "Snacks",
+  },
+  {
+    company: "NutriPanel Foods",
+    item: "Honey Choco Rings",
+    image: itemCereal,
+    pc: 0.39,
+    trust: 36,
+    verdict: "unhealthy",
+    note: "\"Part of a balanced breakfast\" sits on 32g sugar per 100g.",
+    category: "Cereal",
+  },
+  {
+    company: "NutriPanel Foods",
+    item: "High Fibre Bran Flakes",
+    image: itemCereal,
+    pc: 1.18,
+    trust: 81,
+    verdict: "healthy",
+    note: "14g fibre per 100g genuinely exceeds the front-of-pack fibre claim.",
+    category: "Cereal",
   },
 ];
+
+export const trackedNotice =
+  "This product works with all the products, though some are listed only.";
+
+export const categoryShowcase = trackedItems
+  .reduce<{ label: string; sublabel: string; image: string; description: string }[]>(
+    (acc, item) => {
+      if (acc.some((c) => c.label === item.category)) return acc;
+      const inCat = trackedItems.filter((t) => t.category === item.category);
+      const avg = inCat.reduce((s, t) => s + t.pc, 0) / inCat.length;
+      acc.push({
+        label: item.category,
+        sublabel: `${inCat.length} audited`,
+        image: item.image,
+        description: `average P:C ${avg.toFixed(2)}`,
+      });
+      return acc;
+    },
+    [],
+  );
+
+export const testimonials = [
+  {
+    quote:
+      "LabelTruth flagged a 'wholesome' cereal we had shipped for a decade. We reformulated before the regulator ever asked.",
+    name: "Anita Raghavan",
+    designation: "Head of Product Integrity, NutriPanel Foods",
+    src: annMethod,
+  },
+  {
+    quote:
+      "Our wearable streams intake data straight into the P:C engine. The verdict lands on the wrist in under two seconds.",
+    name: "Daniel Okafor",
+    designation: "VP Hardware, TechForges",
+    src: annDevice,
+  },
+  {
+    quote:
+      "We wired the API Program into checkout. Shoppers see a trust score before the basket closes, and returns dropped.",
+    name: "Mira Solberg",
+    designation: "Digital Director, FreshAisle Retail",
+    src: annApi,
+  },
+  {
+    quote:
+      "The confidence band is what sold us. It tells our analysts exactly when a reading deserves a second photograph.",
+    name: "Tomás Lindqvist",
+    designation: "Data Lead, OpenPantry",
+    src: annClient,
+  },
+  {
+    quote:
+      "Public-health teams need auditable numbers, not marketing adjectives. The P:C methodology gives us both a score and its workings.",
+    name: "Dr. Halima Yusuf",
+    designation: "Policy Advisor, EcoTruth Group",
+    src: annSubsidy,
+  },
+];
+
 
 export const historyMilestones = [
   {
