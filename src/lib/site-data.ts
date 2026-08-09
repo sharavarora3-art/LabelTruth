@@ -1,15 +1,15 @@
-import annDevice from "@/assets/ann-device.jpg";
-import annApi from "@/assets/ann-api.jpg";
-import annMethod from "@/assets/ann-method.jpg";
-import annSubsidy from "@/assets/ann-subsidy.jpg";
-import annClient from "@/assets/ann-client.jpg";
+const annDevice = "/assets/ann-device.jpg";
+const annApi = "/assets/ann-api.jpg";
+const annMethod = "/assets/ann-method.jpg";
+const annSubsidy = "/assets/ann-subsidy.jpg";
+const annClient = "/assets/ann-client.jpg";
 
-import itemCola from "@/assets/item-cola.png";
-import itemNoodles from "@/assets/item-noodles.png";
-import itemBar from "@/assets/item-bar.png";
-import itemYogurt from "@/assets/item-yogurt.png";
-import itemChips from "@/assets/item-chips.png";
-import itemCereal from "@/assets/item-cereal.png";
+const itemCola = "/assets/item-cola.png";
+const itemNoodles = "/assets/item-noodles.png";
+const itemBar = "/assets/item-bar.png";
+const itemYogurt = "/assets/item-yogurt.png";
+const itemChips = "/assets/item-chips.png";
+const itemCereal = "/assets/item-cereal.png";
 
 export type Announcement = {
   tag: string;
