@@ -33,6 +33,7 @@ export const AnimatedTestimonials = ({
   }, [autoplay, testimonials.length]);
 
   const rotations = [-8, -4, 0, 4, 8];
+  const current = testimonials[active] ?? testimonials[0]!;
 
   return (
     <div className="mx-auto grid gap-14 md:grid-cols-2">
@@ -41,13 +42,13 @@ export const AnimatedTestimonials = ({
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.src}
-              initial={{ opacity: 0, scale: 0.9, z: -100, rotate: rotations[index % 5] }}
+              initial={{ opacity: 0, scale: 0.9, z: -100, rotate: (rotations[index % 5] ?? 0) }}
               animate={{
                 opacity: isActive(index) ? 1 : 0.7,
                 scale: isActive(index) ? 1 : 0.95,
                 zIndex: isActive(index) ? 40 : testimonials.length + 2 - index,
                 y: isActive(index) ? [0, -60, 0] : 0,
-                rotate: isActive(index) ? 0 : rotations[index % 5],
+                rotate: isActive(index) ? 0 : (rotations[index % 5] ?? 0),
               }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
@@ -71,10 +72,10 @@ export const AnimatedTestimonials = ({
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.25 }}
         >
-          <h3 className="font-display text-2xl font-bold">{testimonials[active].name}</h3>
-          <p className="text-sm text-muted-foreground">{testimonials[active].designation}</p>
+          <h3 className="font-display text-2xl font-bold">{current.name}</h3>
+          <p className="text-sm text-muted-foreground">{current.designation}</p>
           <p className="mt-6 text-lg leading-relaxed">
-            {testimonials[active].quote.split(" ").map((word, index) => (
+            {current.quote.split(" ").map((word, index) => (
               <motion.span
                 key={`${word}-${index}`}
                 initial={{ filter: "blur(8px)", opacity: 0, y: 6 }}
