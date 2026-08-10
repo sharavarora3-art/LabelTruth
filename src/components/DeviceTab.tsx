@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import annDevice from "@/assets/ann-device.jpg";
+const annDevice = "/assets/ann-device.jpg";
 
 const tabs = ["Live readout", "Sync with LabelTruth", "Device specs"] as const;
 type Tab = (typeof tabs)[number];
