@@ -111,8 +111,8 @@
   --sidebar-accent-foreground: oklch(0.28 0.06 150);
   --sidebar-border: oklch(0.88 0.02 110);
   --sidebar-ring: oklch(0.42 0.13 150);
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Karla", ui-sans-serif, system-ui, sans-serif;
   --shadow-card: 0 1px 0 0 oklch(0.19 0.03 150 / 0.08), 0 18px 40px -24px oklch(0.19 0.03 150 / 0.35);
   --gold: oklch(0.82 0.13 88);
   --gold-foreground: oklch(0.24 0.05 90);
@@ -177,7 +177,7 @@
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+   letter-spacing: 0;
   }
 
 }
@@ -223,4 +223,56 @@
 
 .animate-float {
   animation: labeltruth-float 6s ease-in-out infinite;
+}
+
+.editorial-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--color-gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.editorial-kicker::before {
+  content: "";
+  width: 2.75rem;
+  height: 1px;
+  background: var(--color-gold);
+}
+
+.hero-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid oklch(0.985 0.02 120 / 0.22);
+  background: oklch(0.985 0.02 120 / 0.06);
+  box-shadow: var(--shadow-luxe);
+}
+
+.hero-frame::before {
+  position: absolute;
+  inset: 1rem;
+  border: 1px solid oklch(0.82 0.13 88 / 0.32);
+  content: "";
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-frame::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, oklch(0.985 0.02 120 / 0.14), transparent 42%, oklch(0.82 0.13 88 / 0.08));
+  content: "";
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-float {
+    animation: none;
+  }
 }

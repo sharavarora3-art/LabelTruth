@@ -80,57 +80,78 @@ function Landing() {
 
       <CursorImageTrail items={trailItems} itemSize={110} trailLength={7} spawnDistance={90}>
         <section
-          className="relative overflow-hidden px-5 pb-24 pt-20 text-primary-foreground"
+          className="relative overflow-hidden px-5 pb-20 pt-16 text-primary-foreground sm:pb-28 sm:pt-24"
           style={{ background: "var(--gradient-hero)" }}
         >
-          <div className="relative mx-auto max-w-6xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">
-              The P:C ratio standard
-            </span>
-            <h1 className="mt-7 max-w-4xl text-5xl font-bold leading-[1.02] sm:text-7xl">
-              Photograph the pack.
-              <span className="text-luxe block">See if it is telling the truth.</span>
-            </h1>
-            <p className="mt-6 max-w-2xl text-sm leading-relaxed text-primary-foreground/75 sm:text-base">
-              LabelTruth reads the label, judges healthy or not, and scores the gap between what the
-              product actually delivers and what the packaging claims — the{" "}
-              <strong className="font-semibold text-gold">Product-to-Claim (P:C) ratio</strong> —
-              plus a 0-100 trust score and a stated confidence band.
-            </p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link
-                to="/scan"
-                className="rounded-full px-7 py-3 text-sm font-bold text-gold-foreground shadow-luxe transition hover:opacity-90"
-                style={{ background: "var(--gradient-luxe)" }}
-              >
-                Scan a pack now
-              </Link>
-              <Link
-                to="/api"
-                className="rounded-full border border-primary-foreground/25 px-7 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
-              >
-                Explore the API Program
-              </Link>
-            </div>
-            <dl className="mt-14 grid max-w-4xl gap-4 sm:grid-cols-4">
-              {[
-                ["0.00 – 2.00", "P:C ratio scale"],
-                ["0 – 100", "Pack trust score"],
-                ["Low / Med / High", "Confidence band"],
-                [`${trackedItems.length}+`, "Products audited"],
-              ].map(([v, l]) => (
-                <div
-                  key={l}
-                  className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4 backdrop-blur"
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+            <div>
+              <span className="editorial-kicker">The P:C ratio standard</span>
+              <h1 className="mt-8 max-w-3xl font-display text-6xl font-medium leading-[0.9] sm:text-8xl">
+                Photograph the pack.
+                <span className="text-luxe mt-2 block italic">See if it is telling the truth.</span>
+              </h1>
+              <p className="mt-8 max-w-xl text-sm leading-relaxed text-primary-foreground/75 sm:text-base">
+                LabelTruth reads the label, judges healthy or not, and scores the gap between what the
+                product actually delivers and what the packaging claims — the{" "}
+                <strong className="font-semibold text-gold">Product-to-Claim (P:C) ratio</strong> —
+                plus a 0-100 trust score and a stated confidence band.
+              </p>
+              <div className="mt-10 flex flex-wrap items-center gap-4">
+                <Link
+                  to="/scan"
+                  className="inline-flex min-h-12 items-center px-7 py-3 text-sm font-bold text-gold-foreground shadow-luxe transition hover:opacity-90"
+                  style={{ background: "var(--gradient-luxe)" }}
                 >
-                  <dt className="font-display text-xl font-bold text-gold">{v}</dt>
-                  <dd className="text-[11px] uppercase tracking-[0.16em] text-primary-foreground/70">
-                    {l}
-                  </dd>
+                  Scan a pack now
+                </Link>
+                <Link
+                  to="/api"
+                  className="inline-flex min-h-12 items-center border border-primary-foreground/25 px-7 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
+                >
+                  Explore the API Program
+                </Link>
+              </div>
+              <dl className="mt-14 grid max-w-2xl gap-x-6 gap-y-5 border-t border-primary-foreground/15 pt-6 sm:grid-cols-4">
+                {[
+                  ["0.00 – 2.00", "P:C ratio scale"],
+                  ["0 – 100", "Pack trust score"],
+                  ["Low / Med / High", "Confidence band"],
+                  [`${trackedItems.length}+`, "Products audited"],
+                ].map(([v, l]) => (
+                  <div key={l}>
+                    <dt className="font-display text-2xl font-semibold text-gold">{v}</dt>
+                    <dd className="mt-1 text-[10px] uppercase tracking-[0.16em] text-primary-foreground/60">
+                      {l}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-8 max-w-xl text-xs italic text-primary-foreground/60">{trackedNotice}</p>
+            </div>
+
+            <div className="relative mx-auto w-full max-w-md lg:ml-auto">
+              <div className="hero-frame aspect-[4/5]">
+                <div className="absolute inset-0 grid place-items-center bg-primary/30 p-14">
+                  <img
+                    src={trackedItems[3]?.image}
+                    alt={`${trackedItems[3]?.company ?? "Featured"} ${trackedItems[3]?.item ?? "product"}`}
+                    width={768}
+                    height={768}
+                    className="animate-float relative z-10 max-h-full w-auto object-contain drop-shadow-2xl"
+                  />
                 </div>
-              ))}
-            </dl>
-            <p className="mt-8 max-w-xl text-xs italic text-primary-foreground/60">{trackedNotice}</p>
+                <div className="absolute bottom-7 left-7 z-10 border border-primary-foreground/20 bg-primary/80 px-5 py-4 backdrop-blur-md">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Featured audit</p>
+                  <p className="mt-2 font-display text-2xl font-semibold">Greek Yogurt Plain</p>
+                  <p className="mt-1 text-xs text-primary-foreground/65">P:C 1.31 · Trust 86</p>
+                </div>
+              </div>
+              <span className="absolute -right-3 top-8 z-20 grid size-16 place-items-center rounded-full border border-gold/60 bg-background text-center text-[9px] font-bold uppercase leading-tight tracking-[0.12em] text-gold shadow-luxe sm:-right-7">
+                Verified
+                <br />
+                index
+              </span>
+            </div>
           </div>
         </section>
       </CursorImageTrail>
