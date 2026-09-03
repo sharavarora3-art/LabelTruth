@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  # Nitro's Netlify preset emits static assets here and the SSR handler into
+  # .netlify/functions-internal (picked up automatically by Netlify).
+  publish = "dist"
+  functions = ".netlify/functions-internal"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Netlify is auto-detected, but pinning the preset keeps local `npm run build`
+  # reproducible when testing a Netlify build outside CI.
+  NITRO_PRESET = "netlify"
+
+# SPA-style fallback is not needed: the SSR function handles all routes.
