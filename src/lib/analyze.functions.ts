@@ -103,18 +103,14 @@ const schema = {
 export const analyzeLabel = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI is not configured yet.");
+    const { resolveAiProvider } = await import("./ai-provider.server");
+    const provider = resolveAiProvider();
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch(provider.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-        "X-Lovable-AIG-SDK": "fetch",
-      },
+      headers: provider.headers,
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: provider.model,
         temperature: 0.15,
         messages: [
           { role: "system", content: SYSTEM },
@@ -138,6 +134,7 @@ export const analyzeLabel = createServerFn({ method: "POST" })
         },
       }),
     });
+
 
     if (res.status === 429) throw new Error("Too many scans right now — try again in a moment.");
     if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
