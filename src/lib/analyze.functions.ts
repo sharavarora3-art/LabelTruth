@@ -100,50 +100,119 @@ const schema = {
   ],
 };
 
+function retryDelayMs(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get("retry-after");
+  const seconds = retryAfter ? Number(retryAfter) : Number.NaN;
+  const delaySeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 1.5 ** (attempt + 1);
+  return Math.min(delaySeconds, 8) * 1000;
+}
+
+async function requestWithBoundedRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch(url, init);
+    if (response.status !== 429 && response.status < 500) return response;
+    if (attempt === 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
+  }
+
+  throw new Error("The scanner could not reach the AI service.");
+}
+
+function errorMessageFromBody(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw) as { error?: { message?: string } };
+    return parsed.error?.message ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function imagePart(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) throw new Error("One of the uploaded photos could not be read.");
+  return { inlineData: { mimeType: match[1], data: match[2] } };
+}
+
 export const analyzeLabel = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const { resolveAiProvider } = await import("./ai-provider.server");
     const provider = resolveAiProvider();
 
-    const res = await fetch(provider.url, {
+    const userText = `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`;
+    const body =
+      provider.transport === "gemini-content"
+        ? {
+            systemInstruction: { parts: [{ text: SYSTEM }] },
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: userText }, ...data.images.map(imagePart)],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.15,
+              responseMimeType: "application/json",
+            },
+          }
+        : {
+            model: provider.model,
+            temperature: 0.15,
+            messages: [
+              { role: "system", content: SYSTEM },
+              {
+                role: "user",
+                content: [
+                  { type: "text" as const, text: userText },
+                  ...data.images.map((url) => ({
+                    type: "image_url" as const,
+                    image_url: { url },
+                  })),
+                ],
+              },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: { name: "label_audit", strict: true, schema },
+            },
+          };
+
+    const res = await requestWithBoundedRetry(provider.url, {
       method: "POST",
       headers: provider.headers,
-      body: JSON.stringify({
-        model: provider.model,
-        temperature: 0.15,
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`,
-              },
-              ...data.images.map((url) => ({
-                type: "image_url" as const,
-                image_url: { url },
-              })),
-            ],
-          },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "label_audit", strict: true, schema },
-        },
-      }),
+      body: JSON.stringify(body),
     });
 
-
-    if (res.status === 429) throw new Error("Too many scans right now — try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
-    if (!res.ok) throw new Error(`Scan failed (${res.status}): ${await res.text()}`);
+    if (!res.ok) {
+      const raw = await res.text();
+      const providerMessage = errorMessageFromBody(raw);
+      if (res.status === 429) {
+        if (provider.name === "gemini") {
+          throw new Error(
+            providerMessage ??
+              "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again.",
+          );
+        }
+        throw new Error("The AI service is busy after a retry. Please try again shortly.");
+      }
+      if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
+      throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
+    }
 
     const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: string | { text?: string }[] } }[];
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
-    const content = json.choices?.[0]?.message?.content;
+    const openAiContent = json.choices?.[0]?.message?.content;
+    const content =
+      provider.transport === "gemini-content"
+        ? json.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("")
+        : typeof openAiContent === "string"
+          ? openAiContent
+          : openAiContent?.map((part) => part.text ?? "").join("");
     if (!content) throw new Error("The scanner returned an empty result.");
 
     const parsed = JSON.parse(content) as AnalysisResult;
