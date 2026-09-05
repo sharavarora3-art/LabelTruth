@@ -130,6 +130,14 @@ function errorMessageFromBody(raw: string): string | null {
   }
 }
 
+function parseModelJson(content: string): AnalysisResult {
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  return JSON.parse(cleaned) as AnalysisResult;
+}
+
 function imagePart(dataUrl: string) {
   const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
   if (!match) throw new Error("One of the uploaded photos could not be read.");
@@ -198,6 +206,15 @@ export const analyzeLabel = createServerFn({ method: "POST" })
         }
         throw new Error("The AI service is busy after a retry. Please try again shortly.");
       }
+      if (res.status === 401 || res.status === 403) {
+        if (provider.name === "gemini") {
+          throw new Error(
+            providerMessage ??
+              "Gemini rejected this key. Check that the Generative Language API is enabled and that the Cloudflare secret is named GEMINI_API_KEY.",
+          );
+        }
+        throw new Error(providerMessage ?? "The configured AI key was rejected.");
+      }
       if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
       throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
     }
@@ -215,7 +232,7 @@ export const analyzeLabel = createServerFn({ method: "POST" })
           : openAiContent?.map((part) => part.text ?? "").join("");
     if (!content) throw new Error("The scanner returned an empty result.");
 
-    const parsed = JSON.parse(content) as AnalysisResult;
+    const parsed = parseModelJson(content);
     parsed.pcRatio = Math.max(0, Math.min(2, Number(parsed.pcRatio) || 0));
     parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
     if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
