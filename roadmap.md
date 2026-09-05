@@ -1,0 +1,3 @@
+- [x] Correct Gemini request transport and rate-limit handling
+- [x] Build and verify the scanner
+- [x] Provide Cloudflare redeploy and pull-request handoff steps

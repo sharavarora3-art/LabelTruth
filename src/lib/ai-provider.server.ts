@@ -24,6 +24,7 @@ function readEnv(name: string): string | undefined {
 
 export type AiProvider = {
   name: "lovable" | "openai" | "gemini";
+  transport: "chat-completions" | "gemini-content";
   url: string;
   headers: Record<string, string>;
   model: string;
@@ -34,6 +35,7 @@ export function resolveAiProvider(): AiProvider {
   if (lovable) {
     return {
       name: "lovable",
+      transport: "chat-completions",
       url: "https://ai.gateway.lovable.dev/v1/chat/completions",
       headers: {
         "Content-Type": "application/json",
@@ -48,6 +50,7 @@ export function resolveAiProvider(): AiProvider {
   if (openai) {
     return {
       name: "openai",
+      transport: "chat-completions",
       url: "https://api.openai.com/v1/chat/completions",
       headers: {
         "Content-Type": "application/json",
@@ -59,14 +62,19 @@ export function resolveAiProvider(): AiProvider {
 
   const gemini = readEnv("GEMINI_API_KEY") ?? readEnv("GOOGLE_API_KEY");
   if (gemini) {
+    const model = (readEnv("AI_MODEL") ?? "gemini-2.5-flash")
+      .replace(/^google\//, "")
+      .replace(/^models\//, "");
+
     return {
       name: "gemini",
-      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      transport: "gemini-content",
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${gemini}`,
+        "x-goog-api-key": gemini,
       },
-      model: readEnv("AI_MODEL") ?? "gemini-2.5-flash",
+      model,
     };
   }
 
