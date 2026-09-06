@@ -5,12 +5,21 @@ import { announcements } from "@/lib/site-data";
 export function AnnouncementSlider() {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    if (paused) return;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (paused || reducedMotion) return;
     const t = setInterval(() => setI((p) => (p + 1) % announcements.length), 5500);
     return () => clearInterval(t);
-  }, [paused]);
+  }, [paused, reducedMotion]);
 
   const a = announcements[i]!;
 
