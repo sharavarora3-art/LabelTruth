@@ -75,7 +75,7 @@ function Landing() {
   ));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="main-content" className="min-h-screen bg-background">
       <SiteHeader />
 
       <CursorImageTrail items={trailItems} itemSize={110} trailLength={7} spawnDistance={90}>

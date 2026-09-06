@@ -9,16 +9,23 @@ const links = [
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-        <Link to="/" className="font-display text-2xl font-semibold leading-none">
+      <nav
+        aria-label="Primary navigation"
+        className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4"
+      >
+        <Link
+          to="/"
+          aria-label="LabelTruth home"
+          className="shrink-0 font-display text-2xl font-semibold leading-none"
+        >
           Label<span className="italic text-primary">Truth</span>
         </Link>
-        <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.12em]">
+        <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold uppercase tracking-[0.12em]">
           {links.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className="px-3 py-2 text-muted-foreground transition hover:text-foreground"
+              className="shrink-0 px-3 py-2 text-muted-foreground transition hover:text-foreground"
               activeProps={{ className: "bg-secondary text-secondary-foreground" }}
             >
               {l.label}
