@@ -25,13 +25,13 @@ export const AnimatedTestimonials = ({
   const isActive = (index: number) => index === active;
 
   useEffect(() => {
-    if (!autoplay) return;
+    if (!autoplay || prefersReducedMotion) return;
     const interval = setInterval(
       () => setActive((prev) => (prev + 1) % testimonials.length),
       5000,
     );
     return () => clearInterval(interval);
-  }, [autoplay, testimonials.length]);
+  }, [autoplay, prefersReducedMotion, testimonials.length]);
 
   const rotations = [-8, -4, 0, 4, 8];
   const current = testimonials[active] ?? testimonials[0]!;
@@ -48,7 +48,7 @@ export const AnimatedTestimonials = ({
                 opacity: isActive(index) ? 1 : 0.7,
                 scale: isActive(index) ? 1 : 0.95,
                 zIndex: isActive(index) ? 40 : testimonials.length + 2 - index,
-                y: isActive(index) ? [0, -60, 0] : 0,
+                 y: isActive(index) && !prefersReducedMotion ? [0, -60, 0] : 0,
                 rotate: isActive(index) ? 0 : (rotations[index % 5] ?? 0),
               }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -71,7 +71,7 @@ export const AnimatedTestimonials = ({
           key={active}
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.25 }}
+           transition={{ duration: prefersReducedMotion ? 0 : 0.25 }}
         >
           <h3 className="font-display text-2xl font-bold">{current.name}</h3>
           <p className="text-sm text-muted-foreground">{current.designation}</p>
@@ -79,9 +79,9 @@ export const AnimatedTestimonials = ({
             {current.quote.split(" ").map((word, index) => (
               <motion.span
                 key={`${word}-${index}`}
-                initial={{ filter: "blur(8px)", opacity: 0, y: 6 }}
+                initial={prefersReducedMotion ? false : { filter: "blur(8px)", opacity: 0, y: 6 }}
                 animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: 0.02 * index }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.2, delay: prefersReducedMotion ? 0 : 0.02 * index }}
                 className="inline-block"
               >
                 {word}&nbsp;

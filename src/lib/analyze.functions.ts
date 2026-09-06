@@ -145,7 +145,7 @@ function imagePart(dataUrl: string) {
 }
 
 export const analyzeLabel = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => Input.parse(input))
+  .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const { resolveAiProvider } = await import("./ai-provider.server");
     const provider = resolveAiProvider();
