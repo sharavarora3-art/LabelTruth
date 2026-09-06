@@ -35,7 +35,11 @@ export function HoverExpand({
         return (
           <div key={item.label} className="border-b border-border last:border-b-0">
             <motion.div
-              className="relative cursor-pointer overflow-hidden"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isHovered}
+              aria-label={`Show ${item.label}`}
+              className="relative cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               animate={{
                 height: isHovered ? expandedHeight : collapsedHeight,
                 opacity: isOtherHovered ? 0.55 : 1,
@@ -43,6 +47,14 @@ export function HoverExpand({
               transition={{ type: "spring", stiffness: 220, damping: 28 }}
               onHoverStart={() => setHoveredIndex(i)}
               onHoverEnd={() => setHoveredIndex(null)}
+              onFocus={() => setHoveredIndex(i)}
+              onBlur={() => setHoveredIndex(null)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setHoveredIndex(isHovered ? null : i);
+                }
+              }}
             >
               <motion.div
                 className="absolute inset-0"

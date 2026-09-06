@@ -75,11 +75,12 @@ function Landing() {
   ));
 
   return (
-    <div id="main-content" className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <SiteHeader />
 
       <CursorImageTrail items={trailItems} itemSize={110} trailLength={7} spawnDistance={90}>
         <section
+          id="main-content"
           className="relative overflow-hidden px-5 pb-20 pt-16 text-primary-foreground sm:pb-28 sm:pt-24"
           style={{ background: "var(--gradient-hero)" }}
         >

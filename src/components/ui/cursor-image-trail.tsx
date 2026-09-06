@@ -39,6 +39,7 @@ export function CursorImageTrail({
   const containerElRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const el = containerElRef.current;
     if (!el) return;
 

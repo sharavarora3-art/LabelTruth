@@ -16,6 +16,8 @@ export function AnnouncementSlider() {
 
   return (
     <div
+      aria-roledescription="carousel"
+      aria-label="LabelTruth announcements"
       className="overflow-hidden rounded-3xl border border-border bg-card shadow-card"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -31,6 +33,7 @@ export function AnnouncementSlider() {
               width={1024}
               height={640}
               className={`absolute inset-0 size-full object-cover transition-opacity duration-700 ${idx === i ? "opacity-100" : "opacity-0"}`}
+              aria-hidden={idx !== i}
             />
           ))}
         </div>
@@ -39,15 +42,18 @@ export function AnnouncementSlider() {
             <span className="inline-flex rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-secondary-foreground">
               {a.tag}
             </span>
+            <p className="sr-only" aria-live="polite">Announcement {i + 1} of {announcements.length}</p>
             <h3 className="mt-4 text-xl font-bold leading-snug sm:text-2xl">{a.title}</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
           </div>
-          <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" aria-label="Choose an announcement">
             {announcements.map((item, idx) => (
               <button
                 key={item.title}
+                  type="button"
                 onClick={() => setI(idx)}
                 aria-label={`Show announcement ${idx + 1}`}
+                  aria-current={idx === i ? "true" : undefined}
                 className={`h-1.5 rounded-full transition-all ${idx === i ? "w-8 bg-primary" : "w-3 bg-border"}`}
               />
             ))}

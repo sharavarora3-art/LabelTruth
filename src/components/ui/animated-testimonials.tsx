@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 type Testimonial = {
@@ -17,6 +17,7 @@ export const AnimatedTestimonials = ({
   autoplay?: boolean;
 }) => {
   const [active, setActive] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
 
   const handleNext = () => setActive((prev) => (prev + 1) % testimonials.length);
   const handlePrev = () =>
@@ -36,7 +37,7 @@ export const AnimatedTestimonials = ({
   const current = testimonials[active] ?? testimonials[0]!;
 
   return (
-    <div className="mx-auto grid gap-14 md:grid-cols-2">
+    <div className="mx-auto grid gap-14 md:grid-cols-2" aria-roledescription="carousel" aria-label="LabelTruth testimonials">
       <div className="relative h-80 w-full">
         <AnimatePresence>
           {testimonials.map((testimonial, index) => (
@@ -66,7 +67,7 @@ export const AnimatedTestimonials = ({
       </div>
 
       <div className="flex flex-col justify-between py-4">
-        <motion.div
+          <motion.div
           key={active}
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -74,7 +75,7 @@ export const AnimatedTestimonials = ({
         >
           <h3 className="font-display text-2xl font-bold">{current.name}</h3>
           <p className="text-sm text-muted-foreground">{current.designation}</p>
-          <p className="mt-6 text-lg leading-relaxed">
+          <p className="mt-6 text-lg leading-relaxed" aria-live="polite">
             {current.quote.split(" ").map((word, index) => (
               <motion.span
                 key={`${word}-${index}`}
@@ -90,7 +91,7 @@ export const AnimatedTestimonials = ({
         </motion.div>
 
         <div className="flex gap-4 pt-10">
-          <button
+            <button
             type="button"
             onClick={handlePrev}
             aria-label="Previous testimonial"
