@@ -20,8 +20,20 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+//
+// IMPORTANT: Server Function (RPC) requests — e.g. /_serverFn/analyzeLabel — must
+// NEVER be rewritten here. The client's server-fn runtime expects the real
+// serialized error body so it can reconstruct a normal Error and let route code
+// (like scan.tsx's try/catch) show a specific, useful message. Rewriting those
+// responses into a generic HTML page is what was turning every scan failure
+// (rate limits, bad key, slow provider, etc.) into the opaque "This page didn't
+// load" screen instead of the intended inline error.
+async function normalizeCatastrophicSsrResponse(
+  request: Request,
+  response: Response,
+): Promise<Response> {
   if (response.status < 500) return response;
+  if (new URL(request.url).pathname.startsWith("/_serverFn/")) return response;
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
 
@@ -49,7 +61,7 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(request, response);
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
