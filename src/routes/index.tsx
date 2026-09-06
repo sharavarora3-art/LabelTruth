@@ -78,7 +78,8 @@ function Landing() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
 
-      <CursorImageTrail items={trailItems} itemSize={110} trailLength={7} spawnDistance={90}>
+      <main id="main-content">
+        <CursorImageTrail items={trailItems} itemSize={110} trailLength={7} spawnDistance={90}>
         <section
           className="relative overflow-hidden px-5 pb-20 pt-16 text-primary-foreground sm:pb-28 sm:pt-24"
           style={{ background: "var(--gradient-hero)" }}
@@ -154,57 +155,57 @@ function Landing() {
             </div>
           </div>
         </section>
-      </CursorImageTrail>
+        </CursorImageTrail>
 
-      <Section
+        <Section
         eyebrow="Announcements"
         title="What's happening at LabelTruth"
         lead="Partnerships, the API Program, our own evaluation methodology and public-sector work."
       >
         <AnnouncementSlider />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="Categories"
         title="Every aisle, audited"
         lead="Hover a category to open the shelf. Averages are computed from our reference audits."
       >
         <HoverExpand items={categoryShowcase} />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="Hardware"
         title="TechForges Nutrition Tracking Device (upcoming)"
         lead="Our first hardware partner and first API client. Switch between the live readout, the sync flow and the device specs."
       >
         <DeviceTab />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="Partners & clients"
         title="Who we work with"
         lead="Manufacturers, retailers, device makers and data partners integrating LabelTruth scoring."
       >
         <PartnerSlider />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="Coverage"
         title="Company food items tracked with LabelTruth"
         lead="Drag or hover any pack to turn it in 3D and reveal its coverage note."
       >
         <TrackedItems />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="In their words"
         title="Trusted by the people who read panels for a living"
         lead="Manufacturers, retailers, device makers and policy teams on scoring with LabelTruth."
       >
         <AnimatedTestimonials testimonials={testimonials} autoplay />
-      </Section>
+        </Section>
 
-      <Section
+        <Section
         eyebrow="Our history"
         title="From a working group to a scoring standard"
         lead="LabelTruth grew out of EcoTruth Group's label-truth research."
@@ -219,7 +220,8 @@ function Landing() {
             </li>
           ))}
         </ol>
-      </Section>
+        </Section>
+      </main>
 
       <SiteFooter />
     </div>

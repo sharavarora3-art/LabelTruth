@@ -77,7 +77,7 @@ function Scan() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="pb-20">
+      <main id="main-content" className="pb-20">
         <section
           className="px-5 pb-14 pt-12 text-primary-foreground"
           style={{ background: "var(--gradient-hero)" }}
@@ -91,6 +91,8 @@ function Scan() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <button
+                type="button"
+                aria-describedby="scan-help"
                 onClick={() => cameraRef.current?.click()}
                 disabled={loading}
                 className="rounded-full bg-accent px-6 py-3 text-sm font-bold text-accent-foreground transition hover:opacity-90 disabled:opacity-60"
@@ -98,6 +100,8 @@ function Scan() {
                 {loading ? "Reading label…" : "Take a photo"}
               </button>
               <button
+                type="button"
+                aria-describedby="scan-help"
                 onClick={() => uploadRef.current?.click()}
                 disabled={loading}
                 className="rounded-full border border-primary-foreground/25 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10 disabled:opacity-60"
@@ -105,6 +109,9 @@ function Scan() {
                 Upload up to 3 images
               </button>
             </div>
+            <p id="scan-help" className="mt-3 text-xs text-primary-foreground/65">
+              Images stay in this session and are used only to create your label reading.
+            </p>
             <input
               ref={cameraRef}
               type="file"
@@ -133,7 +140,7 @@ function Scan() {
 
           {loading && (
             <div className="rounded-3xl border border-border bg-card p-6 shadow-card">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" role="status" aria-live="polite">
                 <span className="size-3 animate-pulse rounded-full bg-accent" />
                 <p className="text-sm font-semibold">
                   Reading ingredients, claims and the nutrition panel…
@@ -189,7 +196,7 @@ function Scan() {
           )}
         </div>
       </main>
-      <SiteFooter />
+       <SiteFooter />
     </div>
   );
 }

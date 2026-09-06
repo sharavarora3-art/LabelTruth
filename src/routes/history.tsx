@@ -40,7 +40,7 @@ function History() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="mx-auto max-w-4xl px-5 py-14">
+      <main id="main-content" className="mx-auto max-w-4xl px-5 py-14">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
@@ -80,6 +80,8 @@ function History() {
               <li key={r.id}>
                 <button
                   onClick={() => setOpenId(openId === r.id ? null : r.id)}
+                  aria-expanded={openId === r.id}
+                  aria-controls={`scan-${r.id}`}
                   className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left shadow-card transition hover:border-primary/40"
                 >
                   <img
@@ -103,7 +105,7 @@ function History() {
                   </span>
                 </button>
                 {open?.id === r.id && (
-                  <div className="mt-3">
+                  <div id={`scan-${r.id}`} className="mt-3">
                     <ScanResult result={open.result} image={open.image} />
                   </div>
                 )}

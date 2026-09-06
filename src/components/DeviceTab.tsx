@@ -31,10 +31,14 @@ export function DeviceTab() {
 
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-      <div className="flex flex-wrap gap-1 border-b border-border bg-muted/50 p-2">
+      <div className="flex flex-wrap gap-1 border-b border-border bg-muted/50 p-2" role="tablist" aria-label="TechForges device information">
         {tabs.map((t) => (
           <button
             key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            aria-controls={`device-panel-${tabs.indexOf(t)}`}
             onClick={() => setTab(t)}
             className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
               tab === t
@@ -50,7 +54,7 @@ export function DeviceTab() {
       <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-[1fr_240px]">
         <div>
           {tab === "Live readout" && (
-            <div>
+            <div id="device-panel-0" role="tabpanel" tabIndex={0} aria-label="Live readout">
               <div className="flex items-center gap-2">
                 <span className="size-2 animate-pulse rounded-full bg-success" />
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
@@ -81,7 +85,7 @@ export function DeviceTab() {
           )}
 
           {tab === "Sync with LabelTruth" && (
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div id="device-panel-1" role="tabpanel" tabIndex={0} aria-label="Sync with LabelTruth" className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <p className="text-foreground">
                 <strong className="font-semibold">One scan, two signals.</strong> Every pack you scan
                 is pushed to the tracker so intake is logged with its P:C ratio and trust score
@@ -106,7 +110,7 @@ export function DeviceTab() {
           )}
 
           {tab === "Device specs" && (
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <dl id="device-panel-2" role="tabpanel" tabIndex={0} aria-label="Device specifications" className="grid gap-3 text-sm sm:grid-cols-2">
               {[
                 ["Maker", "TechForges"],
                 ["Status", "Upcoming — first API client"],
