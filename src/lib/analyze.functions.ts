@@ -107,12 +107,50 @@ function retryDelayMs(response: Response, attempt: number): number {
   return Math.min(delaySeconds, 8) * 1000;
 }
 
+const AI_REQUEST_TIMEOUT_MS = 45_000;
+
+const AI_REQUEST_TIMEOUT_MS = 45_000;
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("The scanner timed out waiting on the AI service. Please try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function requestWithBoundedRetry(
   url: string,
   init: RequestInit,
 ): Promise<Response> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetch(url, init);
+    const response = await fetchWithTimeout(url, init);
+    if (response.status !== 429 && response.status < 500) return response;
+    if (attempt === 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
+  }
+
+  throw new Error("The scanner could not reach the AI service.");
+}
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function requestWithBoundedRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetchWithTimeout(url, init);
     if (response.status !== 429 && response.status < 500) return response;
     if (attempt === 1) return response;
     await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
