@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import type { AiProvider } from "./ai-provider.server";
+
 const Input = z.object({
   images: z.array(z.string().min(20)).min(1).max(3),
 });
@@ -29,13 +31,28 @@ export type AnalysisResult = {
   summary: string;
 };
 
-const SYSTEM = `You are a meticulous food label auditor. You receive one to three photos that are SUPPOSED to be of the SAME packaged food item (front of pack, ingredient list, and/or nutrition panel).
+// Stage 1: a deliberately tiny, thinking-disabled classifier. Its only job is
+// yes/no — is this actually a packaged food photo — so a non-food photo can
+// be rejected in well under a second instead of paying for the full,
+// variable-length analysis pass below.
+const GATE_SYSTEM = `You are a fast image classifier. You are given one to three photos.
+Decide isFoodLabel: true only if at least one photo clearly shows a packaged food product — front-of-pack branding, an ingredient list, or a nutrition panel. Set it false for anything else: people, pets, scenery, unrelated objects, screenshots, blank or unreadable images, etc.
+If false, write one short, friendly sentence in "note" describing what the photo actually shows and asking for a photo of the product instead. If true, "note" can be an empty string.
+Do not analyse nutrition or claims here — this is only a yes/no gate. Reply with JSON only: {"isFoodLabel": boolean, "note": string}.`;
 
-STEP 0 — GATE (do this first, always):
-Decide isFoodLabel: true only if at least one photo actually shows a packaged food product (front-of-pack branding, an ingredient list, or a nutrition panel). Set it false for anything else — people, pets, scenery, unrelated objects, screenshots, blank/unreadable images, etc.
-If isFoodLabel is false: STOP after this step. Do not analyse, do not invent scores. Set productName "Not a packaged food", category "", verdict "moderate", pcRatio 0, trustScore 0, confidence "low", legibility [], claims [], redFlags [], greenFlags [], and write one short, friendly sentence in summary explaining what the photo actually shows instead and asking for a photo of the product. Reply with JSON only using the fields above — skip every step below.
+const gateSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    isFoodLabel: { type: "boolean" },
+    note: { type: "string" },
+  },
+  required: ["isFoodLabel", "note"],
+};
 
-If isFoodLabel is true, continue:
+// Stage 2: the full audit. Only ever called once the gate has already
+// confirmed the photo is a packaged food product.
+const SYSTEM = `You are a meticulous food label auditor. You receive one to three photos of the SAME packaged food item (front of pack, ingredient list, and/or nutrition panel). This has already been confirmed to be a packaged food product.
 
 WORK IN THIS ORDER, silently, before answering:
 1. TRANSCRIBE what you can actually read: product name, net weight, serving size, servings per pack, and every nutrition value with its unit and basis (per 100g vs per serving). Read the ingredient list in order.
@@ -61,7 +78,6 @@ const schema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    isFoodLabel: { type: "boolean" },
     productName: { type: "string" },
     category: { type: "string" },
     verdict: { type: "string", enum: ["healthy", "moderate", "unhealthy"] },
@@ -90,7 +106,6 @@ const schema = {
     summary: { type: "string" },
   },
   required: [
-    "isFoodLabel",
     "productName",
     "category",
     "verdict",
@@ -155,12 +170,11 @@ function errorMessageFromBody(raw: string): string | null {
   }
 }
 
-function parseModelJson(content: string): AnalysisResult {
-  const cleaned = content
+function stripCodeFence(content: string): string {
+  return content
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
-  return JSON.parse(cleaned) as AnalysisResult;
 }
 
 function imagePart(dataUrl: string) {
@@ -169,107 +183,175 @@ function imagePart(dataUrl: string) {
   return { inlineData: { mimeType: match[1], data: match[2] } };
 }
 
+type CallOptions = {
+  system: string;
+  userText: string;
+  images: string[];
+  maxOutputTokens: number;
+  thinkingBudget: number;
+  schemaName: string;
+  schema: unknown;
+};
+
+async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> {
+  const body =
+    provider.transport === "gemini-content"
+      ? {
+          systemInstruction: { parts: [{ text: opts.system }] },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: opts.userText }, ...opts.images.map(imagePart)],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.15,
+            responseMimeType: "application/json",
+            maxOutputTokens: opts.maxOutputTokens,
+            // gemini-2.5-flash defaults to an unbounded/dynamic thinking
+            // budget, which can silently burn many seconds of "thinking"
+            // tokens before it even starts the JSON answer (and can crowd
+            // out the real output entirely). A small fixed budget keeps
+            // latency predictable; 0 disables thinking entirely for the
+            // trivial yes/no gate.
+            thinkingConfig: { thinkingBudget: opts.thinkingBudget },
+          },
+        }
+      : {
+          model: provider.model,
+          temperature: 0.15,
+          max_tokens: opts.maxOutputTokens,
+          messages: [
+            { role: "system", content: opts.system },
+            {
+              role: "user",
+              content: [
+                { type: "text" as const, text: opts.userText },
+                ...opts.images.map((url) => ({
+                  type: "image_url" as const,
+                  image_url: { url },
+                })),
+              ],
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: { name: opts.schemaName, strict: true, schema: opts.schema },
+          },
+        };
+
+  const res = await requestWithBoundedRetry(provider.url, {
+    method: "POST",
+    headers: provider.headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const raw = await res.text();
+    const providerMessage = errorMessageFromBody(raw);
+    if (res.status === 429) {
+      if (provider.name === "gemini") {
+        throw new Error(
+          providerMessage ??
+            "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again.",
+        );
+      }
+      throw new Error("The AI service is busy after a retry. Please try again shortly.");
+    }
+    if (res.status === 401 || res.status === 403) {
+      if (provider.name === "gemini") {
+        throw new Error(
+          providerMessage ??
+            "Gemini rejected this key. Check that the Generative Language API is enabled and that the Cloudflare secret is named GEMINI_API_KEY.",
+        );
+      }
+      throw new Error(providerMessage ?? "The configured AI key was rejected.");
+    }
+    if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
+    throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
+  }
+
+  const json = (await res.json()) as {
+    choices?: { message?: { content?: string | { text?: string }[] } }[];
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const openAiContent = json.choices?.[0]?.message?.content;
+  const content =
+    provider.transport === "gemini-content"
+      ? json.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("")
+      : typeof openAiContent === "string"
+        ? openAiContent
+        : openAiContent?.map((part) => part.text ?? "").join("");
+  if (!content) throw new Error("The scanner returned an empty result.");
+  return content;
+}
+
+function neutralNonFoodResult(note: string): AnalysisResult {
+  return {
+    isFoodLabel: false,
+    productName: "Not a packaged food",
+    category: "",
+    verdict: "moderate",
+    pcRatio: 0,
+    pcExplanation: "",
+    trustScore: 0,
+    trustExplanation: "",
+    confidence: "low",
+    confidenceExplanation: "",
+    legibility: [],
+    claims: [],
+    redFlags: [],
+    greenFlags: [],
+    summary:
+      note ||
+      "This doesn't look like a packaged food product. Try again with a clear photo of the front of pack, ingredient list or nutrition panel.",
+  };
+}
+
 export const analyzeLabel = createServerFn({ method: "POST" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const { resolveAiProvider } = await import("./ai-provider.server");
     const provider = resolveAiProvider();
 
-    const userText = `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`;
-    const body =
-      provider.transport === "gemini-content"
-        ? {
-            systemInstruction: { parts: [{ text: SYSTEM }] },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: userText }, ...data.images.map(imagePart)],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.15,
-              responseMimeType: "application/json",
-              maxOutputTokens: 4096,
-              // gemini-2.5-flash defaults to an unbounded/dynamic thinking
-              // budget, which can silently burn 30-60s+ of "thinking" tokens
-              // before it even starts the JSON answer (and can crowd out the
-              // real output entirely). This is a straightforward extraction +
-              // classification task, not one that needs open-ended reasoning,
-              // so a small fixed budget keeps latency predictable.
-              thinkingConfig: { thinkingBudget: 512 },
-            },
-          }
-        : {
-            model: provider.model,
-            temperature: 0.15,
-            messages: [
-              { role: "system", content: SYSTEM },
-              {
-                role: "user",
-                content: [
-                  { type: "text" as const, text: userText },
-                  ...data.images.map((url) => ({
-                    type: "image_url" as const,
-                    image_url: { url },
-                  })),
-                ],
-              },
-            ],
-            response_format: {
-              type: "json_schema",
-              json_schema: { name: "label_audit", strict: true, schema },
-            },
-          };
-
-    const res = await requestWithBoundedRetry(provider.url, {
-      method: "POST",
-      headers: provider.headers,
-      body: JSON.stringify(body),
+    // Stage 1: fast gate. No thinking, tiny output — this is what keeps
+    // non-food photos fast and consistent instead of riding the same
+    // variable-length path as a real label audit.
+    const gateContent = await callAi(provider, {
+      system: GATE_SYSTEM,
+      userText: `Look at ${data.images.length} photo(s). Is at least one of them a packaged food product? Reply with JSON only.`,
+      images: data.images,
+      maxOutputTokens: 200,
+      thinkingBudget: 0,
+      schemaName: "food_gate",
+      schema: gateSchema,
     });
 
-    if (!res.ok) {
-      const raw = await res.text();
-      const providerMessage = errorMessageFromBody(raw);
-      if (res.status === 429) {
-        if (provider.name === "gemini") {
-          throw new Error(
-            providerMessage ??
-              "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again.",
-          );
-        }
-        throw new Error("The AI service is busy after a retry. Please try again shortly.");
-      }
-      if (res.status === 401 || res.status === 403) {
-        if (provider.name === "gemini") {
-          throw new Error(
-            providerMessage ??
-              "Gemini rejected this key. Check that the Generative Language API is enabled and that the Cloudflare secret is named GEMINI_API_KEY.",
-          );
-        }
-        throw new Error(providerMessage ?? "The configured AI key was rejected.");
-      }
-      if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
-      throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
+    const gateRaw = JSON.parse(stripCodeFence(gateContent)) as {
+      isFoodLabel?: unknown;
+      note?: unknown;
+    };
+    // Default to proceeding with the full analysis unless the gate
+    // explicitly said false — a parsing hiccup on this cheap classifier
+    // should never block the app's core purpose of analysing a real label.
+    const isFoodLabel = gateRaw.isFoodLabel !== false;
+    if (!isFoodLabel) {
+      return neutralNonFoodResult(typeof gateRaw.note === "string" ? gateRaw.note : "");
     }
 
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string | { text?: string }[] } }[];
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const openAiContent = json.choices?.[0]?.message?.content;
-    const content =
-      provider.transport === "gemini-content"
-        ? json.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("")
-        : typeof openAiContent === "string"
-          ? openAiContent
-          : openAiContent?.map((part) => part.text ?? "").join("");
-    if (!content) throw new Error("The scanner returned an empty result.");
+    // Stage 2: full audit, only reached for confirmed food photos.
+    const content = await callAi(provider, {
+      system: SYSTEM,
+      userText: `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`,
+      images: data.images,
+      maxOutputTokens: 4096,
+      thinkingBudget: 512,
+      schemaName: "label_audit",
+      schema,
+    });
 
-    const parsed = parseModelJson(content);
-    const looksNonFood =
-      typeof parsed.productName === "string" && /not a packaged food/i.test(parsed.productName);
-    parsed.isFoodLabel = parsed.isFoodLabel === false || looksNonFood ? false : true;
-
+    const parsed = JSON.parse(stripCodeFence(content)) as AnalysisResult;
+    parsed.isFoodLabel = true;
     parsed.pcRatio = Math.max(0, Math.min(2, Number(parsed.pcRatio) || 0));
     parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
     if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
@@ -285,17 +367,6 @@ export const analyzeLabel = createServerFn({ method: "POST" })
     parsed.trustExplanation = typeof parsed.trustExplanation === "string" ? parsed.trustExplanation : "";
     parsed.confidenceExplanation =
       typeof parsed.confidenceExplanation === "string" ? parsed.confidenceExplanation : "";
-
-    // A non-food photo should never carry a health verdict or score — enforce
-    // this server-side regardless of what the model returned, so the client
-    // can treat isFoodLabel as the single source of truth.
-    if (!parsed.isFoodLabel) {
-      parsed.pcRatio = 0;
-      parsed.trustScore = 0;
-      parsed.claims = [];
-      parsed.redFlags = [];
-      parsed.greenFlags = [];
-    }
 
     return parsed;
   });
