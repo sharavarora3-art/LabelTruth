@@ -182,15 +182,11 @@ const SUPPORTED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp", "image/he
 function imagePart(dataUrl: string) {
   const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
   if (!match) throw new Error("One of the uploaded photos could not be read.");
-  const declared = match[1].toLowerCase().trim();
+  const declared = (match[1] ?? "").toLowerCase().trim();
   // Gemini rejects the whole request ("invalid argument") on an unsupported
   // mime type, e.g. image/jpg from some phone cameras.
-  const mimeType = SUPPORTED_IMAGE_MIME.includes(declared)
-    ? declared
-    : declared === "image/jpg"
-      ? "image/jpeg"
-      : "image/jpeg";
-  return { inlineData: { mimeType, data: match[2].replace(/\s/g, "") } };
+  const mimeType = SUPPORTED_IMAGE_MIME.includes(declared) ? declared : "image/jpeg";
+  return { inlineData: { mimeType, data: (match[2] ?? "").replace(/\s/g, "") } };
 }
 
 type CallOptions = {
