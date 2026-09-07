@@ -119,7 +119,7 @@ export function ScanResult({ result, image }: { result: AnalysisResult; image: s
       </div>
 
 
-      {result.claims.length > 0 && (
+      {(result.claims?.length ?? 0) > 0 && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
           <h3 className="text-sm font-bold">Claim by claim</h3>
           <ul className="mt-3 space-y-3">
@@ -142,8 +142,8 @@ export function ScanResult({ result, image }: { result: AnalysisResult; image: s
 
       <div className="grid gap-4 sm:grid-cols-2">
         {[
-          { title: "Red flags", items: result.redFlags, dot: "bg-destructive" },
-          { title: "Green flags", items: result.greenFlags, dot: "bg-success" },
+          { title: "Red flags", items: result.redFlags ?? [], dot: "bg-destructive" },
+          { title: "Green flags", items: result.greenFlags ?? [], dot: "bg-success" },
         ].map((group) =>
           group.items.length > 0 ? (
             <div key={group.title} className="rounded-2xl border border-border bg-card p-5 shadow-card">
