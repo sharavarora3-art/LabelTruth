@@ -295,6 +295,13 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
       throw new Error(providerMessage ?? "The configured AI key was rejected.");
     }
     if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
+    if (res.status === 400) {
+      throw new Error(
+        providerMessage
+          ? `The AI service rejected the scan request: ${providerMessage}`
+          : "The AI service rejected the scan request. Try a clearer JPEG or PNG photo of the pack.",
+      );
+    }
     throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
   }
 
