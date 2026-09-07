@@ -181,6 +181,14 @@ export const analyzeLabel = createServerFn({ method: "POST" })
             generationConfig: {
               temperature: 0.15,
               responseMimeType: "application/json",
+              maxOutputTokens: 4096,
+              // gemini-2.5-flash defaults to an unbounded/dynamic thinking
+              // budget, which can silently burn 30-60s+ of "thinking" tokens
+              // before it even starts the JSON answer (and can crowd out the
+              // real output entirely). This is a straightforward extraction +
+              // classification task, not one that needs open-ended reasoning,
+              // so a small fixed budget keeps latency predictable.
+              thinkingConfig: { thinkingBudget: 512 },
             },
           }
         : {
