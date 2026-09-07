@@ -40,6 +40,32 @@ function Gauge({ value, max, label, caption }: { value: number; max: number; lab
 }
 
 export function ScanResult({ result, image }: { result: AnalysisResult; image: string }) {
+  if (!result.isFoodLabel) {
+    return (
+      <section className="space-y-5">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <img
+              src={image}
+              alt="Uploaded photo"
+              className="h-44 w-full object-cover sm:h-auto sm:w-40"
+            />
+            <div className="flex-1 space-y-2 p-5">
+              <span className="inline-flex rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Not a packaged food
+              </span>
+              <p className="pt-1 text-sm leading-relaxed text-muted-foreground">{result.summary}</p>
+              <p className="pt-1 text-sm font-medium">
+                Try again with a clear photo of the product's front, ingredient list or nutrition
+                panel.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const v = verdictStyles[result.verdict] ?? verdictStyles.moderate;
 
   return (

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/scan")({
   component: Scan,
 });
 
-const MAX_EDGE = 1568;
+const MAX_EDGE = 1280;
 
 async function fileToCompressedDataUrl(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -42,7 +42,7 @@ async function fileToCompressedDataUrl(file: File): Promise<string> {
   if (!ctx) throw new Error("Could not read that photo.");
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.92);
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 function Scan() {

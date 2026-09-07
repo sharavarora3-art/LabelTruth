@@ -12,6 +12,7 @@ export type ClaimCheck = {
 };
 
 export type AnalysisResult = {
+  isFoodLabel: boolean;
   productName: string;
   category: string;
   verdict: "healthy" | "moderate" | "unhealthy";
@@ -28,7 +29,13 @@ export type AnalysisResult = {
   summary: string;
 };
 
-const SYSTEM = `You are a meticulous food label auditor. You receive one to three photos of the SAME packaged food item (front of pack, ingredient list, and/or nutrition panel).
+const SYSTEM = `You are a meticulous food label auditor. You receive one to three photos that are SUPPOSED to be of the SAME packaged food item (front of pack, ingredient list, and/or nutrition panel).
+
+STEP 0 — GATE (do this first, always):
+Decide isFoodLabel: true only if at least one photo actually shows a packaged food product (front-of-pack branding, an ingredient list, or a nutrition panel). Set it false for anything else — people, pets, scenery, unrelated objects, screenshots, blank/unreadable images, etc.
+If isFoodLabel is false: STOP after this step. Do not analyse, do not invent scores. Set productName "Not a packaged food", category "", verdict "moderate", pcRatio 0, trustScore 0, confidence "low", legibility [], claims [], redFlags [], greenFlags [], and write one short, friendly sentence in summary explaining what the photo actually shows instead and asking for a photo of the product. Reply with JSON only using the fields above — skip every step below.
+
+If isFoodLabel is true, continue:
 
 WORK IN THIS ORDER, silently, before answering:
 1. TRANSCRIBE what you can actually read: product name, net weight, serving size, servings per pack, and every nutrition value with its unit and basis (per 100g vs per serving). Read the ingredient list in order.
@@ -48,13 +55,13 @@ SCORING RULES
 HARD RULES
 - Never invent a number. If a value is not visible, write "not visible" instead of guessing, and lower confidence.
 - Quote real ingredient names and real figures you read.
-- If the image is not a packaged food item, set productName to "Not a packaged food", confidence "low", and explain in summary.
 Reply with JSON only.`;
 
 const schema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    isFoodLabel: { type: "boolean" },
     productName: { type: "string" },
     category: { type: "string" },
     verdict: { type: "string", enum: ["healthy", "moderate", "unhealthy"] },
@@ -83,6 +90,7 @@ const schema = {
     summary: { type: "string" },
   },
   required: [
+    "isFoodLabel",
     "productName",
     "category",
     "verdict",
@@ -258,6 +266,10 @@ export const analyzeLabel = createServerFn({ method: "POST" })
     if (!content) throw new Error("The scanner returned an empty result.");
 
     const parsed = parseModelJson(content);
+    const looksNonFood =
+      typeof parsed.productName === "string" && /not a packaged food/i.test(parsed.productName);
+    parsed.isFoodLabel = parsed.isFoodLabel === false || looksNonFood ? false : true;
+
     parsed.pcRatio = Math.max(0, Math.min(2, Number(parsed.pcRatio) || 0));
     parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
     if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
@@ -273,5 +285,17 @@ export const analyzeLabel = createServerFn({ method: "POST" })
     parsed.trustExplanation = typeof parsed.trustExplanation === "string" ? parsed.trustExplanation : "";
     parsed.confidenceExplanation =
       typeof parsed.confidenceExplanation === "string" ? parsed.confidenceExplanation : "";
+
+    // A non-food photo should never carry a health verdict or score — enforce
+    // this server-side regardless of what the model returned, so the client
+    // can treat isFoodLabel as the single source of truth.
+    if (!parsed.isFoodLabel) {
+      parsed.pcRatio = 0;
+      parsed.trustScore = 0;
+      parsed.claims = [];
+      parsed.redFlags = [];
+      parsed.greenFlags = [];
+    }
+
     return parsed;
   });
