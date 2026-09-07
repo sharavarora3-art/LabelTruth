@@ -254,5 +254,16 @@ export const analyzeLabel = createServerFn({ method: "POST" })
     parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
     if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
     if (!Array.isArray(parsed.legibility)) parsed.legibility = [];
+    if (!Array.isArray(parsed.claims)) parsed.claims = [];
+    if (!Array.isArray(parsed.redFlags)) parsed.redFlags = [];
+    if (!Array.isArray(parsed.greenFlags)) parsed.greenFlags = [];
+    if (!["healthy", "moderate", "unhealthy"].includes(parsed.verdict)) parsed.verdict = "moderate";
+    parsed.productName = typeof parsed.productName === "string" ? parsed.productName : "Unknown product";
+    parsed.category = typeof parsed.category === "string" ? parsed.category : "";
+    parsed.summary = typeof parsed.summary === "string" ? parsed.summary : "";
+    parsed.pcExplanation = typeof parsed.pcExplanation === "string" ? parsed.pcExplanation : "";
+    parsed.trustExplanation = typeof parsed.trustExplanation === "string" ? parsed.trustExplanation : "";
+    parsed.confidenceExplanation =
+      typeof parsed.confidenceExplanation === "string" ? parsed.confidenceExplanation : "";
     return parsed;
   });
