@@ -32,20 +32,23 @@ export type AiProvider = {
 
 function sanitizeGeminiModel(raw: string): string {
   // Strip any provider-style prefix regardless of how many segments it has
-  // (e.g. "google/gemini-2.5-flash", "openrouter/google/gemini-2.5-flash",
-  // "models/gemini-2.5-flash" all reduce to "gemini-2.5-flash"). AI_MODEL is
+  // (e.g. "google/gemini-3.7-flash", "openrouter/google/gemini-3.7-flash",
+  // "models/gemini-3.7-flash" all reduce to "gemini-3.7-flash"). AI_MODEL is
   // often copied between providers with mismatched naming conventions
   // (OpenRouter-style "vendor/model" vs Gemini's bare model id), so trusting
   // a fixed prefix list blindly can leave the URL malformed.
   const stripped = raw.trim().replace(/^.*\//, "");
-  // Real Gemini model ids look like "gemini-2.5-flash" or "gemini-1.5-pro-002".
+  // Real Gemini model ids look like "gemini-3.7-flash" or "gemini-1.5-pro-002".
   const looksValid = /^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(stripped);
-  return looksValid ? stripped : "gemini-2.5-flash";
+  // Google is actively retiring the 2.x line through 2026 (2.0 shut down
+  // June 2026, 2.5 Pro retires Oct 16 2026) - fall back to the current GA
+  // flagship, not a soon-to-be-dead alias.
+  return looksValid ? stripped : "gemini-3.7-flash";
 }
 
 function normalizeLovableModel(raw: string | undefined): string {
   const trimmed = (raw ?? "").trim();
-  if (!trimmed) return "google/gemini-2.5-flash";
+  if (!trimmed) return "google/gemini-3.7-flash";
   // Lovable's gateway expects an OpenRouter-style "vendor/model" id. AI_MODEL
   // is easy to set as a bare Gemini id (copied from the Gemini secret's
   // format, e.g. "gemini-2.5-pro"), which is missing the vendor prefix
@@ -87,7 +90,7 @@ export function resolveAiProvider(): AiProvider {
 
   const gemini = readEnv("GEMINI_API_KEY") ?? readEnv("GOOGLE_API_KEY");
   if (gemini) {
-    const model = sanitizeGeminiModel(readEnv("AI_MODEL") ?? "gemini-2.5-flash");
+    const model = sanitizeGeminiModel(readEnv("AI_MODEL") ?? "gemini-3.7-flash");
 
     return {
       name: "gemini",

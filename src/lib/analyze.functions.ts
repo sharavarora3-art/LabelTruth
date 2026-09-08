@@ -208,7 +208,7 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
             temperature: 0.15,
             responseMimeType: "application/json",
             maxOutputTokens: opts.maxOutputTokens,
-            // gemini-2.5-flash defaults to an unbounded/dynamic thinking
+            // Gemini's thinking-capable models default to an unbounded/dynamic thinking
             // budget, which can silently burn many seconds of "thinking"
             // tokens before it even starts the JSON answer (and can crowd
             // out the real output entirely). A small fixed budget keeps
