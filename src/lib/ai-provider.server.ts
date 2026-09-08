@@ -30,6 +30,19 @@ export type AiProvider = {
   model: string;
 };
 
+function sanitizeGeminiModel(raw: string): string {
+  // Strip any provider-style prefix regardless of how many segments it has
+  // (e.g. "google/gemini-2.5-flash", "openrouter/google/gemini-2.5-flash",
+  // "models/gemini-2.5-flash" all reduce to "gemini-2.5-flash"). AI_MODEL is
+  // often copied between providers with mismatched naming conventions
+  // (OpenRouter-style "vendor/model" vs Gemini's bare model id), so trusting
+  // a fixed prefix list blindly can leave the URL malformed.
+  const stripped = raw.trim().replace(/^.*\//, "");
+  // Real Gemini model ids look like "gemini-2.5-flash" or "gemini-1.5-pro-002".
+  const looksValid = /^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(stripped);
+  return looksValid ? stripped : "gemini-2.5-flash";
+}
+
 export function resolveAiProvider(): AiProvider {
   const lovable = readEnv("LOVABLE_API_KEY");
   if (lovable) {
@@ -62,9 +75,7 @@ export function resolveAiProvider(): AiProvider {
 
   const gemini = readEnv("GEMINI_API_KEY") ?? readEnv("GOOGLE_API_KEY");
   if (gemini) {
-    const model = (readEnv("AI_MODEL") ?? "gemini-2.5-flash")
-      .replace(/^google\//, "")
-      .replace(/^models\//, "");
+    const model = sanitizeGeminiModel(readEnv("AI_MODEL") ?? "gemini-2.5-flash");
 
     return {
       name: "gemini",
