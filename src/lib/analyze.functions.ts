@@ -177,16 +177,10 @@ function stripCodeFence(content: string): string {
     .replace(/\s*```$/, "");
 }
 
-const SUPPORTED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-
 function imagePart(dataUrl: string) {
   const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
   if (!match) throw new Error("One of the uploaded photos could not be read.");
-  const declared = (match[1] ?? "").toLowerCase().trim();
-  // Gemini rejects the whole request ("invalid argument") on an unsupported
-  // mime type, e.g. image/jpg from some phone cameras.
-  const mimeType = SUPPORTED_IMAGE_MIME.includes(declared) ? declared : "image/jpeg";
-  return { inlineData: { mimeType, data: (match[2] ?? "").replace(/\s/g, "") } };
+  return { inlineData: { mimeType: match[1], data: match[2] } };
 }
 
 type CallOptions = {
@@ -199,106 +193,81 @@ type CallOptions = {
   schema: unknown;
 };
 
-function buildBody(provider: AiProvider, opts: CallOptions, simplify: number) {
-  if (provider.transport === "gemini-content") {
-    const generationConfig: Record<string, unknown> = {
-      temperature: 0.15,
-      maxOutputTokens: opts.maxOutputTokens,
-    };
-    // Attempt 0 sends the tuned config. If Gemini rejects a field with a 400
-    // (model/version dependent), retry with progressively plainer configs
-    // instead of failing the scan.
-    if (simplify === 0) {
-      generationConfig["responseMimeType"] = "application/json";
-      generationConfig["thinkingConfig"] = { thinkingBudget: opts.thinkingBudget };
-    } else if (simplify === 1) {
-      generationConfig["responseMimeType"] = "application/json";
-    }
-    return {
-      systemInstruction: { parts: [{ text: opts.system }] },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: opts.userText }, ...opts.images.map(imagePart)],
-        },
-      ],
-      generationConfig,
-    };
-  }
-
-  return {
-    model: provider.model,
-    temperature: 0.15,
-    max_tokens: opts.maxOutputTokens,
-    messages: [
-      { role: "system", content: opts.system },
-      {
-        role: "user",
-        content: [
-          { type: "text" as const, text: opts.userText },
-          ...opts.images.map((url) => ({
-            type: "image_url" as const,
-            image_url: { url },
-          })),
-        ],
-      },
-    ],
-    response_format:
-      simplify === 0
-        ? {
+async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> {
+  const body =
+    provider.transport === "gemini-content"
+      ? {
+          systemInstruction: { parts: [{ text: opts.system }] },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: opts.userText }, ...opts.images.map(imagePart)],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.15,
+            responseMimeType: "application/json",
+            maxOutputTokens: opts.maxOutputTokens,
+            // gemini-2.5-flash defaults to an unbounded/dynamic thinking
+            // budget, which can silently burn many seconds of "thinking"
+            // tokens before it even starts the JSON answer (and can crowd
+            // out the real output entirely). A small fixed budget keeps
+            // latency predictable; 0 disables thinking entirely for the
+            // trivial yes/no gate.
+            thinkingConfig: { thinkingBudget: opts.thinkingBudget },
+          },
+        }
+      : {
+          model: provider.model,
+          temperature: 0.15,
+          max_tokens: opts.maxOutputTokens,
+          messages: [
+            { role: "system", content: opts.system },
+            {
+              role: "user",
+              content: [
+                { type: "text" as const, text: opts.userText },
+                ...opts.images.map((url) => ({
+                  type: "image_url" as const,
+                  image_url: { url },
+                })),
+              ],
+            },
+          ],
+          response_format: {
             type: "json_schema",
             json_schema: { name: opts.schemaName, strict: true, schema: opts.schema },
-          }
-        : { type: "json_object" },
-  };
-}
+          },
+        };
 
-async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> {
-  let res = await requestWithBoundedRetry(provider.url, {
+  const res = await requestWithBoundedRetry(provider.url, {
     method: "POST",
     headers: provider.headers,
-    body: JSON.stringify(buildBody(provider, opts, 0)),
+    body: JSON.stringify(body),
   });
-
-  for (let simplify = 1; simplify <= 2 && res.status === 400; simplify += 1) {
-    res = await requestWithBoundedRetry(provider.url, {
-      method: "POST",
-      headers: provider.headers,
-      body: JSON.stringify(buildBody(provider, opts, simplify)),
-    });
-  }
-
 
   if (!res.ok) {
     const raw = await res.text();
     const providerMessage = errorMessageFromBody(raw);
+    const tag = `[${provider.name}]`;
     if (res.status === 429) {
       if (provider.name === "gemini") {
         throw new Error(
-          providerMessage ??
-            "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again.",
+          `${tag} ${providerMessage ?? "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again."}`,
         );
       }
-      throw new Error("The AI service is busy after a retry. Please try again shortly.");
+      throw new Error(`${tag} The AI service is busy after a retry. Please try again shortly.`);
     }
     if (res.status === 401 || res.status === 403) {
       if (provider.name === "gemini") {
         throw new Error(
-          providerMessage ??
-            "Gemini rejected this key. Check that the Generative Language API is enabled and that the Cloudflare secret is named GEMINI_API_KEY.",
+          `${tag} ${providerMessage ?? "Gemini rejected this key. Check that the Generative Language API is enabled and that the Cloudflare secret is named GEMINI_API_KEY."}`,
         );
       }
-      throw new Error(providerMessage ?? "The configured AI key was rejected.");
+      throw new Error(`${tag} ${providerMessage ?? "The configured AI key was rejected."}`);
     }
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep scanning.");
-    if (res.status === 400) {
-      throw new Error(
-        providerMessage
-          ? `The AI service rejected the scan request: ${providerMessage}`
-          : "The AI service rejected the scan request. Try a clearer JPEG or PNG photo of the pack.",
-      );
-    }
-    throw new Error(providerMessage ?? `Scan failed (${res.status}).`);
+    if (res.status === 402) throw new Error(`${tag} AI credits exhausted. Add credits to keep scanning.`);
+    throw new Error(`${tag} ${providerMessage ?? `Scan failed (${res.status}).`}`);
   }
 
   const json = (await res.json()) as {
@@ -312,7 +281,7 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
       : typeof openAiContent === "string"
         ? openAiContent
         : openAiContent?.map((part) => part.text ?? "").join("");
-  if (!content) throw new Error("The scanner returned an empty result.");
+  if (!content) throw new Error(`[${provider.name}] The scanner returned an empty result.`);
   return content;
 }
 

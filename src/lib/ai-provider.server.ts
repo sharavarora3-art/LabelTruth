@@ -43,6 +43,18 @@ function sanitizeGeminiModel(raw: string): string {
   return looksValid ? stripped : "gemini-2.5-flash";
 }
 
+function normalizeLovableModel(raw: string | undefined): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "google/gemini-2.5-flash";
+  // Lovable's gateway expects an OpenRouter-style "vendor/model" id. AI_MODEL
+  // is easy to set as a bare Gemini id (copied from the Gemini secret's
+  // format, e.g. "gemini-2.5-pro"), which is missing the vendor prefix
+  // Lovable needs to route the request correctly.
+  if (trimmed.includes("/")) return trimmed;
+  if (/^gemini-/i.test(trimmed)) return `google/${trimmed}`;
+  return trimmed;
+}
+
 export function resolveAiProvider(): AiProvider {
   const lovable = readEnv("LOVABLE_API_KEY");
   if (lovable) {
@@ -55,7 +67,7 @@ export function resolveAiProvider(): AiProvider {
         "Lovable-API-Key": lovable,
         "X-Lovable-AIG-SDK": "fetch",
       },
-      model: readEnv("AI_MODEL") ?? "google/gemini-3.6-flash",
+      model: normalizeLovableModel(readEnv("AI_MODEL")),
     };
   }
 
