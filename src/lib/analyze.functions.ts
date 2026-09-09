@@ -183,12 +183,26 @@ function imagePart(dataUrl: string) {
   return { inlineData: { mimeType: match[1], data: match[2] } };
 }
 
+type ThinkingEffort = "none" | "light";
+
+function buildThinkingConfig(model: string, effort: ThinkingEffort): Record<string, unknown> {
+  // Gemini 3.x replaced thinkingBudget (a token count) with thinkingLevel
+  // (minimal/low/medium/high). Sending thinkingBudget to a 3.x model is
+  // rejected as an invalid argument - and 3.x Flash/Flash-Lite models don't
+  // support fully disabling thinking, so "none" maps to the lowest level
+  // rather than an actual off switch.
+  if (/^gemini-3/.test(model)) {
+    return { thinkingLevel: effort === "none" ? "minimal" : "low" };
+  }
+  return { thinkingBudget: effort === "none" ? 0 : 512 };
+}
+
 type CallOptions = {
   system: string;
   userText: string;
   images: string[];
   maxOutputTokens: number;
-  thinkingBudget: number;
+  thinkingEffort: ThinkingEffort;
   schemaName: string;
   schema: unknown;
 };
@@ -208,13 +222,11 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
             temperature: 0.15,
             responseMimeType: "application/json",
             maxOutputTokens: opts.maxOutputTokens,
-            // Gemini's thinking-capable models default to an unbounded/dynamic thinking
-            // budget, which can silently burn many seconds of "thinking"
-            // tokens before it even starts the JSON answer (and can crowd
-            // out the real output entirely). A small fixed budget keeps
-            // latency predictable; 0 disables thinking entirely for the
-            // trivial yes/no gate.
-            thinkingConfig: { thinkingBudget: opts.thinkingBudget },
+            // Gemini's thinking-capable models default to an unbounded/dynamic
+            // thinking allowance, which can silently burn many seconds before
+            // it even starts the JSON answer (and can crowd out the real
+            // output entirely). Keeping this bounded keeps latency predictable.
+            thinkingConfig: buildThinkingConfig(provider.model, opts.thinkingEffort),
           },
         }
       : {
@@ -320,8 +332,8 @@ export const analyzeLabel = createServerFn({ method: "POST" })
       system: GATE_SYSTEM,
       userText: `Look at ${data.images.length} photo(s). Is at least one of them a packaged food product? Reply with JSON only.`,
       images: data.images,
-      maxOutputTokens: 200,
-      thinkingBudget: 0,
+      maxOutputTokens: 400,
+      thinkingEffort: "none",
       schemaName: "food_gate",
       schema: gateSchema,
     });
@@ -343,8 +355,8 @@ export const analyzeLabel = createServerFn({ method: "POST" })
       system: SYSTEM,
       userText: `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`,
       images: data.images,
-      maxOutputTokens: 4096,
-      thinkingBudget: 512,
+      maxOutputTokens: 8192,
+      thinkingEffort: "light",
       schemaName: "label_audit",
       schema,
     });
