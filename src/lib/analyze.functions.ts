@@ -268,7 +268,7 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
           `${tag} ${providerMessage ?? "Gemini temporarily rate-limited the scanner. Check the Google AI Studio quota for this key, then try again."}`,
         );
       }
-      throw new Error(`${tag} The AI service is busy after a retry. Please try again shortly.`);
+      throw new Error(`${tag} ${providerMessage ?? "The AI service is busy after a retry. Please try again shortly."}`);
     }
     if (res.status === 401 || res.status === 403) {
       if (provider.name === "gemini") {
