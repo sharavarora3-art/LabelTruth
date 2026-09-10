@@ -249,10 +249,14 @@ async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> 
               ],
             },
           ],
-          response_format: {
-            type: "json_schema",
-            json_schema: { name: opts.schemaName, strict: true, schema: opts.schema },
-          },
+          ...(provider.supportsStrictJsonSchema
+            ? {
+                response_format: {
+                  type: "json_schema",
+                  json_schema: { name: opts.schemaName, strict: true, schema: opts.schema },
+                },
+              }
+            : {}),
         };
 
   const res = await requestWithBoundedRetry(provider.url, {

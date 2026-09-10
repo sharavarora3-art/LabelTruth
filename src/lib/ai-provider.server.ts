@@ -30,6 +30,12 @@ export type AiProvider = {
   url: string;
   headers: Record<string, string>;
   model: string;
+  // Strict, schema-constrained JSON output is a demanding feature that not
+  // every OpenAI-compatible backend implements reliably - particularly
+  // smaller/older open models combined with vision input. Only rely on it
+  // where it's known to work; everywhere else, fall back to prompt-based
+  // JSON (the system prompt already asks for JSON-only output).
+  supportsStrictJsonSchema: boolean;
 };
 
 function sanitizeGeminiModel(raw: string): string {
@@ -83,6 +89,7 @@ export function resolveAiProvider(): AiProvider {
         Authorization: `Bearer ${cfApiToken}`,
       },
       model: sanitizeWorkersAiModel(readEnv("AI_MODEL")),
+      supportsStrictJsonSchema: false,
     };
   }
 
@@ -98,6 +105,7 @@ export function resolveAiProvider(): AiProvider {
         "X-Lovable-AIG-SDK": "fetch",
       },
       model: normalizeLovableModel(readEnv("AI_MODEL")),
+      supportsStrictJsonSchema: false,
     };
   }
 
@@ -112,6 +120,7 @@ export function resolveAiProvider(): AiProvider {
         Authorization: `Bearer ${openai}`,
       },
       model: readEnv("AI_MODEL") ?? "gpt-4o-mini",
+      supportsStrictJsonSchema: true,
     };
   }
 
@@ -128,6 +137,7 @@ export function resolveAiProvider(): AiProvider {
         "x-goog-api-key": gemini,
       },
       model,
+      supportsStrictJsonSchema: false,
     };
   }
 
