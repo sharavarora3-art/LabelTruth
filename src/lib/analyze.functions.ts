@@ -163,8 +163,11 @@ async function requestWithBoundedRetry(
 
 function errorMessageFromBody(raw: string): string | null {
   try {
-    const parsed = JSON.parse(raw) as { error?: { message?: string } };
-    return parsed.error?.message ?? null;
+    const parsed = JSON.parse(raw) as {
+      error?: { message?: string };
+      errors?: { message?: string }[];
+    };
+    return parsed.error?.message ?? parsed.errors?.[0]?.message ?? null;
   } catch {
     return null;
   }

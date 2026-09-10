@@ -3,9 +3,11 @@
  * Lovable Cloud, Netlify and Cloudflare Workers.
  *
  * Priority:
- *  1. LOVABLE_API_KEY  -> Lovable AI Gateway (default on Lovable)
- *  2. OPENAI_API_KEY   -> OpenAI chat completions
- *  3. GEMINI_API_KEY   -> Google Gemini OpenAI-compatible endpoint
+ *  1. CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN -> Workers AI (free daily
+ *     allowance, native to this app's own Cloudflare infrastructure)
+ *  2. LOVABLE_API_KEY  -> Lovable AI Gateway (default on Lovable)
+ *  3. OPENAI_API_KEY   -> OpenAI chat completions
+ *  4. GEMINI_API_KEY   -> Google Gemini OpenAI-compatible endpoint
  *
  * Cloudflare Workers inject env per-request rather than on process.env, so we
  * read both process.env and the Worker env exposed on globalThis.
@@ -23,7 +25,7 @@ function readEnv(name: string): string | undefined {
 }
 
 export type AiProvider = {
-  name: "lovable" | "openai" | "gemini";
+  name: "workers-ai" | "lovable" | "openai" | "gemini";
   transport: "chat-completions" | "gemini-content";
   url: string;
   headers: Record<string, string>;
@@ -59,7 +61,31 @@ function normalizeLovableModel(raw: string | undefined): string {
   return trimmed;
 }
 
+function sanitizeWorkersAiModel(raw: string | undefined): string {
+  const trimmed = (raw ?? "").trim();
+  // AI_MODEL is shared across every provider branch in this file, so it's
+  // easy for it to be left over from a different provider (a bare Gemini or
+  // OpenAI model id). Only trust it here if it's actually a Workers AI model
+  // id (the "@cf/" catalog prefix); otherwise use a known-good vision model.
+  return trimmed.startsWith("@cf/") ? trimmed : "@cf/meta/llama-3.2-11b-vision-instruct";
+}
+
 export function resolveAiProvider(): AiProvider {
+  const cfAccountId = readEnv("CLOUDFLARE_ACCOUNT_ID");
+  const cfApiToken = readEnv("CLOUDFLARE_API_TOKEN");
+  if (cfAccountId && cfApiToken) {
+    return {
+      name: "workers-ai",
+      transport: "chat-completions",
+      url: `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/v1/chat/completions`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfApiToken}`,
+      },
+      model: sanitizeWorkersAiModel(readEnv("AI_MODEL")),
+    };
+  }
+
   const lovable = readEnv("LOVABLE_API_KEY");
   if (lovable) {
     return {
@@ -106,6 +132,6 @@ export function resolveAiProvider(): AiProvider {
   }
 
   throw new Error(
-    "AI is not configured. Set LOVABLE_API_KEY (Lovable), or OPENAI_API_KEY / GEMINI_API_KEY in your Netlify or Cloudflare environment variables.",
+    "AI is not configured. Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN (Workers AI), LOVABLE_API_KEY (Lovable), or OPENAI_API_KEY / GEMINI_API_KEY in your Netlify or Cloudflare environment variables.",
   );
 }
