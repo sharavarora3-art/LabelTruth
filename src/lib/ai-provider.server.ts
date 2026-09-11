@@ -76,6 +76,20 @@ function sanitizeWorkersAiModel(raw: string | undefined): string {
   return trimmed.startsWith("@cf/") ? trimmed : "@cf/meta/llama-3.2-11b-vision-instruct";
 }
 
+export function describeProviderEnv(): string {
+  const flag = (name: string) => {
+    const v = readEnv(name);
+    return v && v.trim() ? `set(${v.trim().length}ch)` : "missing";
+  };
+  return [
+    `CLOUDFLARE_ACCOUNT_ID=${flag("CLOUDFLARE_ACCOUNT_ID")}`,
+    `CLOUDFLARE_API_TOKEN=${flag("CLOUDFLARE_API_TOKEN")}`,
+    `LOVABLE_API_KEY=${flag("LOVABLE_API_KEY")}`,
+    `OPENAI_API_KEY=${flag("OPENAI_API_KEY")}`,
+    `GEMINI_API_KEY=${flag("GEMINI_API_KEY")}`,
+  ].join(" ");
+}
+
 export function resolveAiProvider(): AiProvider {
   const cfAccountId = readEnv("CLOUDFLARE_ACCOUNT_ID");
   const cfApiToken = readEnv("CLOUDFLARE_API_TOKEN");

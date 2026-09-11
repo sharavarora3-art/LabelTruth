@@ -329,62 +329,71 @@ function neutralNonFoodResult(note: string): AnalysisResult {
 export const analyzeLabel = createServerFn({ method: "POST" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
-    const { resolveAiProvider } = await import("./ai-provider.server");
+    const { resolveAiProvider, describeProviderEnv } = await import("./ai-provider.server");
     const provider = resolveAiProvider();
 
-    // Stage 1: fast gate. No thinking, tiny output — this is what keeps
-    // non-food photos fast and consistent instead of riding the same
-    // variable-length path as a real label audit.
-    const gateContent = await callAi(provider, {
-      system: GATE_SYSTEM,
-      userText: `Look at ${data.images.length} photo(s). Is at least one of them a packaged food product? Reply with JSON only.`,
-      images: data.images,
-      maxOutputTokens: 400,
-      thinkingEffort: "none",
-      schemaName: "food_gate",
-      schema: gateSchema,
-    });
+    try {
+      // Stage 1: fast gate. No thinking, tiny output — this is what keeps
+      // non-food photos fast and consistent instead of riding the same
+      // variable-length path as a real label audit.
+      const gateContent = await callAi(provider, {
+        system: GATE_SYSTEM,
+        userText: `Look at ${data.images.length} photo(s). Is at least one of them a packaged food product? Reply with JSON only.`,
+        images: data.images,
+        maxOutputTokens: 400,
+        thinkingEffort: "none",
+        schemaName: "food_gate",
+        schema: gateSchema,
+      });
 
-    const gateRaw = JSON.parse(stripCodeFence(gateContent)) as {
-      isFoodLabel?: unknown;
-      note?: unknown;
-    };
-    // Default to proceeding with the full analysis unless the gate
-    // explicitly said false — a parsing hiccup on this cheap classifier
-    // should never block the app's core purpose of analysing a real label.
-    const isFoodLabel = gateRaw.isFoodLabel !== false;
-    if (!isFoodLabel) {
-      return neutralNonFoodResult(typeof gateRaw.note === "string" ? gateRaw.note : "");
+      const gateRaw = JSON.parse(stripCodeFence(gateContent)) as {
+        isFoodLabel?: unknown;
+        note?: unknown;
+      };
+      // Default to proceeding with the full analysis unless the gate
+      // explicitly said false — a parsing hiccup on this cheap classifier
+      // should never block the app's core purpose of analysing a real label.
+      const isFoodLabel = gateRaw.isFoodLabel !== false;
+      if (!isFoodLabel) {
+        return neutralNonFoodResult(typeof gateRaw.note === "string" ? gateRaw.note : "");
+      }
+
+      // Stage 2: full audit, only reached for confirmed food photos.
+      const content = await callAi(provider, {
+        system: SYSTEM,
+        userText: `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`,
+        images: data.images,
+        maxOutputTokens: 8192,
+        thinkingEffort: "light",
+        schemaName: "label_audit",
+        schema,
+      });
+
+      const parsed = JSON.parse(stripCodeFence(content)) as AnalysisResult;
+      parsed.isFoodLabel = true;
+      parsed.pcRatio = Math.max(0, Math.min(2, Number(parsed.pcRatio) || 0));
+      parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
+      if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
+      if (!Array.isArray(parsed.legibility)) parsed.legibility = [];
+      if (!Array.isArray(parsed.claims)) parsed.claims = [];
+      if (!Array.isArray(parsed.redFlags)) parsed.redFlags = [];
+      if (!Array.isArray(parsed.greenFlags)) parsed.greenFlags = [];
+      if (!["healthy", "moderate", "unhealthy"].includes(parsed.verdict)) parsed.verdict = "moderate";
+      parsed.productName = typeof parsed.productName === "string" ? parsed.productName : "Unknown product";
+      parsed.category = typeof parsed.category === "string" ? parsed.category : "";
+      parsed.summary = typeof parsed.summary === "string" ? parsed.summary : "";
+      parsed.pcExplanation = typeof parsed.pcExplanation === "string" ? parsed.pcExplanation : "";
+      parsed.trustExplanation = typeof parsed.trustExplanation === "string" ? parsed.trustExplanation : "";
+      parsed.confidenceExplanation =
+        typeof parsed.confidenceExplanation === "string" ? parsed.confidenceExplanation : "";
+
+      return parsed;
+    } catch (err) {
+      // Temporary diagnostic: reveal which credentials the Worker can
+      // actually see (presence + length only, never the value) so a
+      // provider-selection mismatch is visible directly in the error
+      // instead of requiring more back-and-forth guessing.
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`${message} || resolved=[${provider.name}] env: ${describeProviderEnv()}`);
     }
-
-    // Stage 2: full audit, only reached for confirmed food photos.
-    const content = await callAi(provider, {
-      system: SYSTEM,
-      userText: `Audit this packaged food using ${data.images.length} photo(s) of the same product. Transcribe the panel first, normalise to per 100g, then score. Return JSON only.`,
-      images: data.images,
-      maxOutputTokens: 8192,
-      thinkingEffort: "light",
-      schemaName: "label_audit",
-      schema,
-    });
-
-    const parsed = JSON.parse(stripCodeFence(content)) as AnalysisResult;
-    parsed.isFoodLabel = true;
-    parsed.pcRatio = Math.max(0, Math.min(2, Number(parsed.pcRatio) || 0));
-    parsed.trustScore = Math.max(0, Math.min(100, Math.round(Number(parsed.trustScore) || 0)));
-    if (!["low", "medium", "high"].includes(parsed.confidence)) parsed.confidence = "medium";
-    if (!Array.isArray(parsed.legibility)) parsed.legibility = [];
-    if (!Array.isArray(parsed.claims)) parsed.claims = [];
-    if (!Array.isArray(parsed.redFlags)) parsed.redFlags = [];
-    if (!Array.isArray(parsed.greenFlags)) parsed.greenFlags = [];
-    if (!["healthy", "moderate", "unhealthy"].includes(parsed.verdict)) parsed.verdict = "moderate";
-    parsed.productName = typeof parsed.productName === "string" ? parsed.productName : "Unknown product";
-    parsed.category = typeof parsed.category === "string" ? parsed.category : "";
-    parsed.summary = typeof parsed.summary === "string" ? parsed.summary : "";
-    parsed.pcExplanation = typeof parsed.pcExplanation === "string" ? parsed.pcExplanation : "";
-    parsed.trustExplanation = typeof parsed.trustExplanation === "string" ? parsed.trustExplanation : "";
-    parsed.confidenceExplanation =
-      typeof parsed.confidenceExplanation === "string" ? parsed.confidenceExplanation : "";
-
-    return parsed;
   });
