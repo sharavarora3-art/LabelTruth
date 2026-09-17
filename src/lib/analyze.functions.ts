@@ -174,10 +174,20 @@ function errorMessageFromBody(raw: string): string | null {
 }
 
 function stripCodeFence(content: string): string {
-  return content
+  const cleaned = content
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
+
+  // Some smaller/weaker models answer in natural language despite explicit
+  // "JSON only" instructions (e.g. "The image shows a bag of chips... {...}").
+  // If the cleaned text isn't already a bare JSON object, extract the
+  // substring between the first { and last } rather than failing outright.
+  if (cleaned.startsWith("{") && cleaned.endsWith("}")) return cleaned;
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) return cleaned.slice(start, end + 1);
+  return cleaned;
 }
 
 function imagePart(dataUrl: string) {
@@ -265,7 +275,7 @@ async function callWorkersAiBinding(opts: CallOptions): Promise<string> {
   try {
     result = await withTimeout(
       ai.run("@cf/meta/llama-3.2-11b-vision-instruct", {
-        prompt: `${opts.system}\n\n${opts.userText}\n\n(Only one photo is provided in this request.)`,
+        prompt: `${opts.system}\n\n${opts.userText}\n\n(Only one photo is provided in this request.)\n\nIMPORTANT: Your entire response must be a single valid JSON object and nothing else - no preamble, no explanation, no markdown code fences, no text before or after the JSON. Start your response with { and end with }.`,
         image: imageBytes,
         max_tokens: opts.maxOutputTokens,
       }),
