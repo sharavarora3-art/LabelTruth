@@ -210,7 +210,84 @@ type CallOptions = {
   schema: unknown;
 };
 
+type WorkersAiBinding = {
+  run: (model: string, inputs: Record<string, unknown>) => Promise<unknown>;
+};
+
+function getWorkersAiBinding(): WorkersAiBinding | undefined {
+  const g = globalThis as unknown as {
+    __env__?: { AI?: WorkersAiBinding };
+    env?: { AI?: WorkersAiBinding };
+  };
+  return g.__env__?.AI ?? g.env?.AI;
+}
+
+const WORKERS_AI_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(onTimeout)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+/**
+ * Workers AI's OpenAI-compatible endpoint for this model is undocumented and
+ * unreliable for image input (Cloudflare's own sample code for this exact
+ * model is a known-broken open issue: cloudflare/cloudflare-docs#19185). The
+ * one pattern their own tutorial actually demonstrates working is the raw
+ * binding with a single image as a plain byte array - so that's what this
+ * uses, which also means only the first photo is analysed on this provider.
+ */
+async function callWorkersAiBinding(opts: CallOptions): Promise<string> {
+  const ai = getWorkersAiBinding();
+  if (!ai) {
+    throw new Error(
+      '[workers-ai] No Workers AI binding found. In this Worker\'s Settings -> Bindings, add a Workers AI binding named "AI".',
+    );
+  }
+
+  const match = opts.images[0]?.match(/^data:([^;,]+);base64,(.+)$/);
+  const base64Data = match?.[2];
+  if (!base64Data) throw new Error("[workers-ai] One of the uploaded photos could not be read.");
+  const imageBytes = Array.from(Buffer.from(base64Data, "base64"));
+
+  let result: unknown;
+  try {
+    result = await withTimeout(
+      ai.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+        prompt: `${opts.system}\n\n${opts.userText}\n\n(Only one photo is provided in this request.)`,
+        image: imageBytes,
+        max_tokens: opts.maxOutputTokens,
+      }),
+      WORKERS_AI_TIMEOUT_MS,
+      "[workers-ai] The scanner timed out waiting on Workers AI. Please try again.",
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("[workers-ai]")) throw err;
+    throw new Error(`[workers-ai] ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  const r = result as { response?: string; result?: { response?: string } };
+  const content = typeof result === "string" ? result : r?.response ?? r?.result?.response;
+  if (!content) throw new Error("[workers-ai] The scanner returned an empty result.");
+  return content;
+}
+
 async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> {
+  if (provider.name === "workers-ai") {
+    return callWorkersAiBinding(opts);
+  }
+
   const body =
     provider.transport === "gemini-content"
       ? {
