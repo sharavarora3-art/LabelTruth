@@ -287,10 +287,15 @@ async function callWorkersAiBinding(opts: CallOptions): Promise<string> {
     throw new Error(`[workers-ai] ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  const r = result as { response?: string; result?: { response?: string } };
-  const content = typeof result === "string" ? result : r?.response ?? r?.result?.response;
-  if (!content) throw new Error("[workers-ai] The scanner returned an empty result.");
-  return content;
+  const r = result as { response?: unknown; result?: { response?: unknown } };
+  const rawContent = typeof result === "string" ? result : r?.response ?? r?.result?.response;
+  if (!rawContent) throw new Error("[workers-ai] The scanner returned an empty result.");
+  if (typeof rawContent !== "string") {
+    // Reveal the actual raw shape instead of guessing further - this settles
+    // definitively what Cloudflare's binding actually returns for this model.
+    throw new Error(`[workers-ai] Unexpected response shape: ${JSON.stringify(result).slice(0, 800)}`);
+  }
+  return rawContent;
 }
 
 async function callAi(provider: AiProvider, opts: CallOptions): Promise<string> {
