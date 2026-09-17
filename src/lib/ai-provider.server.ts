@@ -91,7 +91,12 @@ export function describeProviderEnv(): string {
 }
 
 export function resolveAiProvider(): AiProvider {
-  const cfAccountId = readEnv("CLOUDFLARE_ACCOUNT_ID");
+  // The account ID isn't sensitive (it's an identifier, not a secret), and
+  // a dashboard-set plain variable gets wiped on every deploy by Cloudflare
+  // Workers Builds' `wrangler deploy` unless --keep-vars is passed. Baking a
+  // fallback in here means this never silently breaks after a deploy again -
+  // the token (an actual secret) is unaffected and still required separately.
+  const cfAccountId = readEnv("CLOUDFLARE_ACCOUNT_ID") ?? "7926652b478852bd92554a8a1bba96d4";
   const cfApiToken = readEnv("CLOUDFLARE_API_TOKEN");
   if (cfAccountId && cfApiToken) {
     return {
